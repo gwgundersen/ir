@@ -2,6 +2,7 @@ extern crate exitcode;
 extern crate libc;
 
 use libc::{c_int, pid_t, rusage, timeval};
+use std::env;
 use std::io;
 
 fn wait4(pid: pid_t, options: c_int) -> io::Result<(pid_t, c_int, rusage)> {
@@ -34,7 +35,12 @@ fn wait4(pid: pid_t, options: c_int) -> io::Result<(pid_t, c_int, rusage)> {
 
 
 fn main() {
-    println!("Hello, world!");
+    let json_path = match env::args().skip(1).next() {
+        Some(p) => p,
+        None => panic!("no file given"),  // FIXME
+    };
+        
+    println!("path: {}", json_path);
 
     let child_pid = unsafe { libc::fork() };
     if child_pid == 0 {
