@@ -13,7 +13,7 @@ fn main() {
     };
 
     println!("path: {}", json_path);
-    let spec = spec::load_spec_file(json_path);
+    let spec = spec::load_spec_file(json_path).ok().unwrap();  // FIXME
     println!("spec: {:?}", spec);
 
     let child_pid = unsafe { libc::fork() };
