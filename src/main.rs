@@ -1,6 +1,7 @@
 extern crate exitcode;
 extern crate libc;
 
+mod spec;
 mod sys;
 
 use std::env;
@@ -12,6 +13,8 @@ fn main() {
     };
 
     println!("path: {}", json_path);
+    let spec = spec::load_spec_file(json_path);
+    println!("spec: {:?}", spec);
 
     let child_pid = unsafe { libc::fork() };
     if child_pid == 0 {
