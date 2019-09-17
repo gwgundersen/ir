@@ -8,7 +8,7 @@ use std::vec::Vec;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Spec {
-    argv: Vec<String>,
+    pub argv: Vec<String>,
 }
 
 pub fn load_spec_file<P: AsRef<Path>>(path: P) -> Result<Spec, Box<dyn Error>> {

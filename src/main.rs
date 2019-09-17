@@ -22,7 +22,18 @@ fn main() {
     let child_pid = unsafe { libc::fork() };
     if child_pid == 0 {
         println!("child, pid={}", unsafe { libc::getpid() });
-        std::process::exit(42);
+
+        let exe = &spec.argv[0];
+        let mut argv: Vec<*const i8> =
+            spec.argv
+            .iter()
+            .map(|a| { a.as_ptr() as *const i8 })
+            .collect();
+        argv.push(std::ptr::null());
+
+        let res = unsafe {
+            libc::execv(exe.as_ptr() as *const i8, argv.as_ptr())
+        };
     }
     else {
         println!("parent, child_pid={}", child_pid);
