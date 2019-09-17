@@ -43,7 +43,7 @@
 
     - `{"type": "fd", "fd": n}` or (int): `dup`ed to incoming file descriptor.
 
-    - `{"type": "transicript"}`: Timestamped binary transicript format.
+    - `{"type": "transcript"}`: Timestamped binary transicript format.
 
     - FIXME: tcp, udp, http, websocket?
     
@@ -59,6 +59,37 @@
 - `pdeath_sig` (int): Parent death signal, or null for none.
 
 - FIXME: signal disposition
+
+
+### Examples
+
+```json
+{
+    "stdout": "/path/to/stdout",
+    "stderr": 1
+}
+```
+
+```json
+{
+    "stdout": {"type": "file", "path": "/path/to/stdout"},
+    "stderr": {"type": "fd", "fd": 1},
+}
+```
+
+```json
+{
+    "stdout": {"file": "/path/to/stdout"},
+    "stderr": {"fd": 1},
+}
+```
+
+```json
+{
+    "stdout": {"file": {"path": "/path/to/stdout"}},
+    "stderr": {"fd": {"fd": 1}},
+}
+```
 
 
 # Transcript file format
