@@ -1,5 +1,4 @@
 extern crate exitcode;
-extern crate libc;
 
 mod spec;
 mod sys;
@@ -19,21 +18,15 @@ fn main() {
     });
     println!("spec: {:?}", spec);
 
-    let child_pid = unsafe { libc::fork() };
+    let child_pid = sys::fork().unwrap_or_else(|err| {
+        println!("failed to fork: {}", err);
+        std::process::exit(exitcode::OSERR);
+    });
     if child_pid == 0 {
-        println!("child, pid={}", unsafe { libc::getpid() });
-
+        println!("child, pid={}", sys::getpid());
         let exe = &spec.argv[0];
-        let mut argv: Vec<*const i8> =
-            spec.argv
-            .iter()
-            .map(|a| { a.as_ptr() as *const i8 })
-            .collect();
-        argv.push(std::ptr::null());
-
-        let res = unsafe {
-            libc::execv(exe.as_ptr() as *const i8, argv.as_ptr())
-        };
+        let err = sys::execv(&exe, &spec.argv).unwrap_err();
+        println!("failed to exec: {}", err);
     }
     else {
         println!("parent, child_pid={}", child_pid);
