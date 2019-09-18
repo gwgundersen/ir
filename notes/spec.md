@@ -63,6 +63,7 @@
 - FIXME: report child pid to caller, somehow?
 - FIXME: state file
 - FIXME: state web service?
+- FIXME: shell command?
 
 
 ### Examples
