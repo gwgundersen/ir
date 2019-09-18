@@ -36,8 +36,8 @@ pub fn getpid() -> pid_t {
 
 pub fn wait4(pid: pid_t, options: c_int) -> io::Result<(pid_t, c_int, rusage)> {
     let mut status: c_int = 0;
+    let mut usage = MaybeUninit::<rusage>::uninit();
     unsafe {
-        let mut usage = MaybeUninit::<rusage>::uninit();
         match libc::wait4(pid, &mut status, options, usage.as_mut_ptr()) {
             -1 => Err(io::Error::last_os_error()),
             child_pid => Ok((child_pid, status, usage.assume_init())),
