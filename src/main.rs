@@ -1,12 +1,11 @@
 extern crate exitcode;
 
+mod environ;
 mod spec;
 mod sys;
 
-use std::env;
-
 fn main() {
-    let json_path = match env::args().skip(1).next() {
+    let json_path = match std::env::args().skip(1).next() {
         Some(p) => p,
         None => panic!("no file given"),  // FIXME
     };
