@@ -26,7 +26,7 @@
 
     - `vars` (object): Env vars to set or override.  If the value is null, the
       env var is removed if present.
-    
+
 - `cwd` (string): Current working directory.  If omitted or null, inherits.
 
 - `stdin`, `stdout`, `stderr`:
@@ -64,6 +64,16 @@
 - FIXME: state file
 - FIXME: state web service?
 - FIXME: shell command?
+
+
+### Error handling
+
+Choices:
+
+0. Nothing.
+1. Return exit code.
+2. Write to some fd or a file a JSON obj with status.
+
 
 
 ### Examples
