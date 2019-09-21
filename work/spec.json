@@ -2,5 +2,8 @@
   "argv": [
     "/bin/echo",
     ">> Hello, world! <<"
-  ]
+  ],
+  "env": {
+    "inherit": ["foo", "bar"]
+  }
 }
