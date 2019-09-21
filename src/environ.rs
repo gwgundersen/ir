@@ -1,5 +1,4 @@
 use serde::{Serialize, Deserialize, Deserializer};
-use serde::de::SeqAccess;
 use std::collections::HashMap;
 use std::fmt;
 use std::string::String;
@@ -29,7 +28,7 @@ impl<'de> Deserialize<'de> for EnvInheritSpec {
             type Value = EnvInheritSpec;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("true, false, or array of env var names")
+                formatter.write_str("true, false, or seq of env var names")
             }
 
             fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E> {
@@ -38,7 +37,7 @@ impl<'de> Deserialize<'de> for EnvInheritSpec {
 
             fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error> 
             where
-                S: SeqAccess<'de>
+                S: serde::de::SeqAccess<'de>
             {
                 let mut vars = Vec::new();
                 while let Some(var) = seq.next_element()? {
@@ -66,6 +65,7 @@ pub struct EnvSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::EnvInheritSpec::*;
 
     fn assert_json(json: &'static str, expected: EnvSpec) {
         assert_eq!(
@@ -77,7 +77,7 @@ mod tests {
     fn empty() {
         assert_json(
             r#" {} "#, 
-            EnvSpec { inherit: EnvInheritSpec::None, ..Default::default() }
+            EnvSpec { inherit: None, ..Default::default() }
         );
     }
 
@@ -85,7 +85,7 @@ mod tests {
     fn inherit_all() {
         assert_json(
             r#" {"inherit": true} "#,
-            EnvSpec { inherit: EnvInheritSpec::All, ..Default::default() }
+            EnvSpec { inherit: All, ..Default::default() }
         );
     }
 
@@ -94,7 +94,7 @@ mod tests {
         assert_json(
             r#" {"inherit": ["HOME", "USER", "PATH"]} "#,
             EnvSpec {
-                inherit: EnvInheritSpec::Vars(vec!(
+                inherit: Vars(vec!(
                     "HOME".to_string(),
                     "USER".to_string(),
                     "PATH".to_string())
