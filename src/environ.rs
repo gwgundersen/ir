@@ -103,5 +103,20 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn vars() {
+        assert_json(
+            r#" {"vars": {"FOO": "42", "BAR": "somewhere with drinks"}} "#,
+            EnvSpec {
+                vars: hashmap!{
+                    "FOO".to_string() => "42".to_string(),
+                    "BAR".to_string() => "somewhere with drinks".to_string(),
+                },
+                ..Default::default()
+            }
+        );
+    }
+
 }
 

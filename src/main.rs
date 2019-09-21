@@ -1,5 +1,7 @@
 extern crate exitcode;
 
+#[macro_use] extern crate maplit;
+
 mod environ;
 mod spec;
 mod sys;
