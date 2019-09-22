@@ -33,15 +33,21 @@ where T: IntoIterator<Item = String>
 {
     fn from(strings: T) -> Self {
         // Build nul-terminated strings.
-        let strs: Vec<String> = strings.into_iter().map(|mut s| {
-            s.push('\0');
-            s
-        }).collect();
+        let strs
+            = strings.into_iter()
+            .map(|mut s| {
+                s.push('\0');
+                s
+            })
+            .collect::<Vec<_>>();
 
         // Grab their pointers into an array.
-        let mut ptrs: Vec<*const i8> = strs.iter().map(|s| {
-            s.as_ptr() as *const i8
-        }).collect();
+        let mut ptrs
+            = strs.iter()
+            .map(|s| {
+                s.as_ptr() as *const i8
+            })
+            .collect::<Vec<_>>();
         // NULL-terminate the pointer array.
         ptrs.push(std::ptr::null());
 
