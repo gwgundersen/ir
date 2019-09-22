@@ -1,5 +1,6 @@
 extern crate exitcode;
 
+#[allow(unused_imports)]
 #[macro_use] extern crate maplit;
 
 mod environ;
@@ -20,7 +21,6 @@ fn main() {
     println!("spec: {:?}", spec);
 
     let env = environ::build(std::env::vars(), &spec.env);
-    println!("env: {:?}", env);
 
     let child_pid = sys::fork().unwrap_or_else(|err| {
         println!("failed to fork: {}", err);
@@ -29,7 +29,7 @@ fn main() {
     if child_pid == 0 {
         println!("child, pid={}", sys::getpid());
         let exe = &spec.argv[0];
-        let err = sys::execv(&exe, &spec.argv).unwrap_err();
+        let err = sys::execve(&exe, &spec.argv, env).unwrap_err();
         println!("failed to exec: {}", err);
     }
     else {

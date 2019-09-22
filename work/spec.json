@@ -1,10 +1,9 @@
 {
   "argv": [
-    "/bin/echo",
-    ">> Hello, world! <<"
+    "/usr/bin/printenv"
   ],
   "env": {
-    "inherit": ["PATH", "USER", "HOME"],
+    "inherit": ["PATH", "USER", "HOME", "foo"],
     "vars": {
       "FOO": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
       "USER": "guest"

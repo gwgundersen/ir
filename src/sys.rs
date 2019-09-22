@@ -6,16 +6,43 @@ use std::mem::MaybeUninit;
 use std::string::String;
 use std::vec::Vec;
 
-pub fn execv(exe: &String, args: &Vec<String>) -> io::Result<()> {
+use crate::environ::Env;
+
+//------------------------------------------------------------------------------
+
+fn build_strv(args: &Vec<String>) -> Vec<*const i8> {
     // Build argv as a NULL-terminated char* array.
     let mut argv: Vec<*const i8>
         = args.iter().map(|a| { a.as_ptr() as *const i8 }).collect();
     argv.push(std::ptr::null());
+    argv
+}
 
+//------------------------------------------------------------------------------
+
+#[allow(dead_code)]
+pub fn execv(exe: &String, args: &Vec<String>) -> io::Result<()> {
     let res = unsafe {
-        libc::execv(exe.as_ptr() as *const i8, argv.as_ptr())
+        libc::execv(exe.as_ptr() as *const i8, build_strv(args).as_ptr())
     };
     // execv only returns on failure, with result -1.
+    assert!(res == -1);
+    Err(io::Error::last_os_error())
+}
+
+pub fn execve(exe: &String, args: &Vec<String>, env: Env) -> io::Result<()> {
+    // Construct NAME=val strings for env vars.
+    let env = env.into_iter().map(|(n, v)| {
+        format!("{}={}", n, v)
+    }).collect();
+
+    let res = unsafe {
+        libc::execve(
+            exe.as_ptr() as *const i8,
+            build_strv(args).as_ptr(), 
+            build_strv(&env).as_ptr())
+    };
+    // execve only returns on failure, with result -1.
     assert!(res == -1);
     Err(io::Error::last_os_error())
 }

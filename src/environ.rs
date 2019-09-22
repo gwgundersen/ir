@@ -1,12 +1,12 @@
 use serde::{Serialize, Deserialize, Deserializer};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt;
 use std::string::String;
 use std::vec::Vec;
 
 //------------------------------------------------------------------------------
 
-type Env = HashMap<String, String>;  // FIXME: Use OsString instead?
+pub type Env = BTreeMap<String, String>;  // FIXME: Use OsString instead?
 
 #[derive(Serialize, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
