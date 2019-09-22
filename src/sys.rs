@@ -13,8 +13,14 @@ use crate::environ::Env;
 /// C-style char* array, containing a NULL-terminated array of pointers to
 /// nul-terminated strings.
 struct CStringVec {
+    // Nul-terminated strings.
+    // FIXME: We need to keep this around as it stores the actual strings
+    // pointed to by `ptrs`, but Rust doesn't know this.  Should figure out how
+    // to tell it.
     #[allow(dead_code)]
     strs: Vec<String>,
+
+    // NULL-terminated vector of char* pointers.
     ptrs: Vec<*const i8>,
 }
 
@@ -22,13 +28,16 @@ impl CStringVec {
     pub fn as_ptr(&self) -> *const *const i8 { self.ptrs.as_ptr() as *const *const i8 }
 }
 
-impl From<Vec<String>> for CStringVec {
-    fn from(strings: Vec<String>) -> Self {
+impl<T> From<T> for CStringVec
+where T: IntoIterator<Item = String>
+{
+    fn from(strings: T) -> Self {
         // Build nul-terminated strings.
         let strs: Vec<String> = strings.into_iter().map(|mut s| {
             s.push('\0');
             s
         }).collect();
+
         // Grab their pointers into an array.
         let mut ptrs: Vec<*const i8> = strs.iter().map(|s| {
             s.as_ptr() as *const i8
