@@ -4,6 +4,10 @@
     ">> Hello, world! <<"
   ],
   "env": {
-    "inherit": ["foo", "bar"]
+    "inherit": ["PATH", "USER", "HOME"],
+    "vars": {
+      "FOO": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "USER": "guest"
+    }
   }
 }

@@ -19,6 +19,9 @@ fn main() {
     });
     println!("spec: {:?}", spec);
 
+    let env = environ::build(std::env::vars(), &spec.env);
+    println!("env: {:?}", env);
+
     let child_pid = sys::fork().unwrap_or_else(|err| {
         println!("failed to fork: {}", err);
         std::process::exit(exitcode::OSERR);
