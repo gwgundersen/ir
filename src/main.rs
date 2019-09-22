@@ -29,7 +29,7 @@ fn main() {
     if child_pid == 0 {
         println!("child, pid={}", sys::getpid());
         let exe = &spec.argv[0];
-        let err = sys::execve(&exe, &spec.argv, env).unwrap_err();
+        let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();
         println!("failed to exec: {}", err);
     }
     else {
