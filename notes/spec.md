@@ -43,7 +43,13 @@
 
     - `{"type": "fd", "fd": n}` or (int): `dup`ed to incoming file descriptor.
 
-    - `{"type": "transcript"}`: Timestamped binary transicript format.
+    - `{"type": "capture"}`: Capture in memory and emit in JSON.  Must be UTF-8?
+    
+    - `{"format": "raw"}`: Raw.
+    
+    - `{"format": "utf-8"}`: Raw but cleaned for UTF-8. (??)
+
+    - `{"format": "capture"}`: Timestamped binary transicript format.
 
     - FIXME: tcp, udp, http, websocket?
     
@@ -58,9 +64,11 @@
 
 - `pdeath_sig` (int): Parent death signal, or null for none.
 
+- FIXME: multiple procs in a single file, run in parallel
 - FIXME: signal disposition
 - FIXME: wait, or don't, or daemonize
 - FIXME: report child pid to caller, somehow?
+- FIXME: Poll for usage, other status, update intermediate file?
 - FIXME: state file
 - FIXME: state web service?
 - FIXME: shell command?
