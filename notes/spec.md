@@ -64,6 +64,7 @@
 
 - `pdeath_sig` (int): Parent death signal, or null for none.
 
+- FIXME: rusage self, children
 - FIXME: multiple procs in a single file, run in parallel
 - FIXME: signal disposition
 - FIXME: wait, or don't, or daemonize
