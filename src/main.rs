@@ -1,9 +1,11 @@
 extern crate exitcode;
 
+// Used for tests.
 #[allow(unused_imports)]
 #[macro_use] extern crate maplit;
 
 mod environ;
+mod result;
 mod spec;
 mod sys;
 
@@ -13,12 +15,12 @@ fn main() {
         None => panic!("no file given"),  // FIXME
     };
 
-    println!("path: {}", json_path);
     let spec = spec::load_spec_file(&json_path).unwrap_or_else(|err| {
         println!("failed to load {}: {}", json_path, err);
         std::process::exit(exitcode::OSFILE);
     });
     println!("spec: {:?}", spec);
+    println!("");
 
     let env = environ::build(std::env::vars(), &spec.env);
 
@@ -27,19 +29,20 @@ fn main() {
         std::process::exit(exitcode::OSERR);
     });
     if child_pid == 0 {
-        println!("child, pid={}", sys::getpid());
         let exe = &spec.argv[0];
         let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();
         println!("failed to exec: {}", err);
     }
     else {
-        println!("parent, child_pid={}", child_pid);
-        let (wait_pid, status, usage) = sys::wait4(child_pid, 0).ok().unwrap();
-        println!("waited: {}, status={}", wait_pid, status);
-        println!("utime: {}", usage.ru_utime.tv_sec as f64 + 1e-6 * usage.ru_utime.tv_usec as f64);
+        let (wait_pid, status, rusage) = sys::wait4(child_pid, 0).ok().unwrap();
+        assert_eq!(wait_pid, child_pid);  // FIXME: Errors.
+        let result = result::Result { pid: child_pid, status, rusage };
+
+        println!("");
+        println!("waited: status={}", result.status);
+        println!("utime: {:.6}", result.utime());
     }
 
     std::process::exit(exitcode::OK);
 }
-
 
