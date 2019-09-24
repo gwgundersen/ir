@@ -3,9 +3,9 @@
     "/usr/bin/printenv"
   ],
   "env": {
-    "inherit": ["PATH", "USER", "HOME", "foo"],
+    "inherit": ["PATH", "USER", "HOME", "BAR"],
     "vars": {
-      "FOO": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "FOO": "xxxxxxxxxxxxxxxx",
       "USER": "guest"
     }
   }
