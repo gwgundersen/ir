@@ -73,6 +73,8 @@
 - FIXME: state web service?
 - FIXME: shell command?
 - FIXME: YAML and other spec formats?
+- FIXME: Process groups???
+- FIXME: Capture a spec from a running process.
 
 
 ### Error handling
