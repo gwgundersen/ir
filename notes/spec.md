@@ -47,7 +47,7 @@
     
     - `{"format": "raw"}`: Raw.
     
-    - `{"format": "utf-8"}`: Raw but cleaned for UTF-8. (??)
+    - `{"format": "text"}`: Raw but cleaned for UTF-8. (??)
 
     - `{"format": "capture"}`: Timestamped binary transicript format.
 
@@ -72,6 +72,7 @@
 - FIXME: state file
 - FIXME: state web service?
 - FIXME: shell command?
+- FIXME: YAML and other spec formats?
 
 
 ### Error handling
