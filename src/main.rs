@@ -39,8 +39,7 @@ fn main() {
         let result = result::Result { pid: child_pid, status, rusage };
 
         println!("");
-        println!("waited: status={}", result.status);
-        println!("utime: {:.6}", result.utime());
+        result::print(&result);
     }
 
     std::process::exit(exitcode::OK);
