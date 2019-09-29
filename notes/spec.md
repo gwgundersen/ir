@@ -57,7 +57,7 @@
 
     - FIXME: tcp, udp, http, websocket?
     
-- `transicript` (object): Where to write transicribed fds, if any.  As for other
+- `transcript` (object): Where to write transicribed fds, if any.  As for other
   fds, but "inherit", "close", "transicript" not allowed.  Also,
   
     - `max_len` (int): Maximum length to read in one chunk.  Default 1048576.
