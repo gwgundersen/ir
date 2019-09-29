@@ -1,0 +1,13 @@
+{
+    "argv": [
+        "/bin/echo", "Hello, world!"
+    ],
+    "fds": [
+        {
+            "fd": 1,
+            "file": {
+                "path": "out-file.stdout"
+            }
+        }
+    ]
+}
