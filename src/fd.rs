@@ -1,43 +1,47 @@
-use serde::{Serialize, Deserialize};
-use std::path::PathBuf;
+pub mod spec {
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub enum OpenFlagSpec {
-    // FIXME: Generalize.
+    use serde::{Serialize, Deserialize};
+    use std::path::PathBuf;
 
-    /// Read for stdin, Write for stdout/stderr, ReadWrite for others.
-    Default,  
+    #[derive(Debug, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub enum OpenFlag {
+        // FIXME: Generalize.
 
-    Read,
-    Write,
-    Append,
-    ReadWrite,
-}
+        /// Read for stdin, Write for stdout/stderr, ReadWrite for others.
+        Default,  
 
-impl Default for OpenFlagSpec {
-    fn default() -> Self { Self::Default }
-}
+        Read,
+        Write,
+        Append,
+        ReadWrite,
+    }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-#[serde(default)]
-pub struct FileSpec {
-    path: PathBuf,
-    flags: OpenFlagSpec,
-}
+    impl Default for OpenFlag {
+        fn default() -> Self { Self::Default }
+    }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-#[serde(rename_all="lowercase")]
-pub enum FdSpec {
-    Inherit,
-    Close,
-    Null,
-    File(FileSpec),
-}
+    #[derive(Debug, Default, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    #[serde(default)]
+    pub struct File {
+        path: PathBuf,
+        flags: OpenFlag,
+    }
 
-impl Default for FdSpec {
-    fn default() -> Self { Self::Inherit }
+    #[derive(Debug, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    #[serde(rename_all="lowercase")]
+    pub enum Fd {
+        Inherit,
+        Close,
+        Null,
+        File(File),
+    }
+
+    impl Default for Fd {
+        fn default() -> Self { Self::Inherit }
+    }
+
 }
 

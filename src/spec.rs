@@ -1,3 +1,4 @@
+use libc::c_int;
 use serde::{Serialize, Deserialize};
 use std::error::Error;
 use std::fs::File;
@@ -6,13 +7,24 @@ use std::path::Path;
 use std::string::String;
 
 use crate::environ;
+use crate::fd;
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+#[serde(deny_unknown_fields)]
+#[serde(default)]
+pub struct FdSpec {
+    pub fd: c_int,
+    #[serde(flatten)]
+    pub spec: fd::spec::Fd,
+}
 
 #[derive(Serialize, Deserialize, Default, Debug)]
 #[serde(deny_unknown_fields)]
 #[serde(default)]
 pub struct Spec {
     pub argv: Vec<String>,
-    pub env: environ::EnvSpec,
+    pub env: environ::spec::Env,
+    pub fds: Vec<FdSpec>,
 }
 
 pub fn load_spec_file<P: AsRef<Path>>(path: P) -> Result<Spec, Box<dyn Error>> {
