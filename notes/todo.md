@@ -28,4 +28,5 @@
 ### Done
 
 - [x] split out lib
+- [x] set up integration test
 
