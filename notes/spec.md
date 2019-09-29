@@ -1,4 +1,3 @@
-
 ```js
 {
     "argv": [
@@ -26,6 +25,10 @@
 
     - `vars` (object): Env vars to set or override.  If the value is null, the
       env var is removed if present.
+      
+    - `exclude` (array): Names of env vars to exclude from `inherit`.
+    
+    - glob or rexeg support for `inherit` and `exclude`
 
 - `cwd` (string): Current working directory.  If omitted or null, inherits.
 
@@ -63,19 +66,6 @@
 - `umask` (int): Process umask, or null to inherit.
 
 - `pdeath_sig` (int): Parent death signal, or null for none.
-
-- FIXME: rusage self, children
-- FIXME: multiple procs in a single file, run in parallel
-- FIXME: signal disposition
-- FIXME: wait, or don't, or daemonize
-- FIXME: report child pid to caller, somehow?
-- FIXME: Poll for usage, other status, update intermediate file?
-- FIXME: state file
-- FIXME: state web service?
-- FIXME: shell command?
-- FIXME: YAML and other spec formats?
-- FIXME: Process groups???
-- FIXME: Capture a spec from a running process.
 
 
 ### Error handling
