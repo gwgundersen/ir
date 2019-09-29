@@ -41,7 +41,8 @@
     - `{"type": "file", "path": path}` or (string): File; may be relative to
       ir's CWD (not process CWD).  Also,
       
-          - `mode`
+          - `open_mode` (read, write, append, excl, creat)
+          - `mode` (file system)
           - `group`
 
     - `{"type": "fd", "fd": n}` or (int): `dup`ed to incoming file descriptor.
