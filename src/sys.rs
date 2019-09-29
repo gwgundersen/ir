@@ -57,7 +57,6 @@ where T: IntoIterator<Item = String>
 
 //------------------------------------------------------------------------------
 
-#[allow(dead_code)]
 pub fn execv(exe: String, args: Vec<String>) -> io::Result<()> {
     let res = unsafe {
         libc::execv(

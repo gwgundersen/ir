@@ -4,10 +4,10 @@ extern crate exitcode;
 #[allow(unused_imports)]
 #[macro_use] extern crate maplit;
 
-mod environ;
-mod result;
-mod spec;
-mod sys;
+use ir::environ;
+use ir::result;
+use ir::spec;
+use ir::sys;
 
 fn main() {
     let json_path = match std::env::args().skip(1).next() {

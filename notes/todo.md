@@ -1,4 +1,3 @@
-- [ ] split out lib
 - [ ] capture output into results
 - [ ] output fd (stdout, stderr, etc) to file
 - [ ] merge output fds
@@ -25,3 +24,8 @@
 - [ ] build a spec from a running process
 - [ ] compression support for output files
 - [ ] input/output fd from/to network (tcp, udp, websocket, REST API)
+
+### Done
+
+- [x] split out lib
+

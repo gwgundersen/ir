@@ -104,6 +104,6 @@ impl Result {
 }
 
 pub fn print(result: &Result) {
-    serde_json::to_writer_pretty(std::io::stdout(), result);
+    serde_json::to_writer(std::io::stdout(), result).unwrap();
 }
 
