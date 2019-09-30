@@ -2,11 +2,15 @@ extern crate libc;
 
 use libc::{c_int, pid_t, rusage};
 use std::io;
+use std::path::Path;
 use std::mem::MaybeUninit;
 use std::string::String;
 use std::vec::Vec;
 
 use crate::environ::Env;
+
+#[allow(non_camel_case_types)]
+pub type fd_t = libc::c_int;
 
 //------------------------------------------------------------------------------
 
@@ -57,6 +61,24 @@ where T: IntoIterator<Item = String>
 
 //------------------------------------------------------------------------------
 
+pub fn close(fd: fd_t) -> io::Result<()> {
+    let res = unsafe { libc::close(fd) };
+    match res {
+        -1 => Err(io::Error::last_os_error()),
+         0 => Ok(()),
+         _ => panic!("close returned {}", res),
+    }
+}
+
+pub fn dup2(fd: fd_t, fd2: fd_t) -> io::Result<()> {
+    let res = unsafe { libc::dup2(fd, fd2) };
+    match res {
+        -1 => Err(io::Error::last_os_error()),
+         0 => Ok(()),
+         _ => panic!("dup2 returned {}", res),
+    }
+}
+
 pub fn execv(exe: String, args: Vec<String>) -> io::Result<()> {
     let res = unsafe {
         libc::execv(
@@ -99,14 +121,26 @@ pub fn getpid() -> pid_t {
     unsafe { libc::getpid() }
 }
 
+pub fn open(path: &Path, oflag: libc::c_int) -> io::Result<fd_t> {
+    let fd = unsafe {
+        libc::open(path.to_str().unwrap().as_ptr() as *const i8, oflag)
+    };
+    match fd {
+        -1 => Err(io::Error::last_os_error()),
+        _ if fd >= 0 => Ok(fd),
+        _ => panic!("open returned {}", fd)
+    }
+}
+
 pub fn wait4(pid: pid_t, options: c_int) -> io::Result<(pid_t, c_int, rusage)> {
     let mut status: c_int = 0;
     let mut usage = MaybeUninit::<rusage>::uninit();
-    unsafe {
-        match libc::wait4(pid, &mut status, options, usage.as_mut_ptr()) {
-            -1 => Err(io::Error::last_os_error()),
-            child_pid => Ok((child_pid, status, usage.assume_init())),
-        }
+    let res = unsafe { 
+        libc::wait4(pid, &mut status, options, usage.as_mut_ptr())
+    };
+    match res {
+        -1 => Err(io::Error::last_os_error()),
+        child_pid => Ok((child_pid, status, unsafe { usage.assume_init() })),
     }
 }
 
