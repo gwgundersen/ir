@@ -1,6 +1,7 @@
 extern crate libc;
 
 use libc::{c_int, pid_t, rusage};
+use std::ffi::CString;
 use std::io;
 use std::path::Path;
 use std::mem::MaybeUninit;
@@ -22,7 +23,7 @@ struct CStringVec {
     // pointed to by `ptrs`, but Rust doesn't know this.  Should figure out how
     // to tell it.
     #[allow(dead_code)]
-    strs: Vec<String>,
+    strs: Vec<CString>,
 
     // NULL-terminated vector of char* pointers.
     ptrs: Vec<*const i8>,
@@ -39,10 +40,7 @@ where T: IntoIterator<Item = String>
         // Build nul-terminated strings.
         let strs
             = strings.into_iter()
-            .map(|mut s| {
-                s.push('\0');
-                s
-            })
+            .map(|s| { CString::new(s).unwrap() })
             .collect::<Vec<_>>();
 
         // Grab their pointers into an array.
@@ -98,7 +96,7 @@ pub fn execve(exe: String, args: Vec<String>, env: Env) -> io::Result<()> {
 
     let res = unsafe {
         libc::execve(
-            exe.as_ptr() as *const i8,
+            CString::new(exe).unwrap().as_ptr() as *const i8,
             CStringVec::from(args).as_ptr(), 
             CStringVec::from(env).as_ptr())
     };
