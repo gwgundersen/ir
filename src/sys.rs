@@ -121,7 +121,10 @@ pub fn getpid() -> pid_t {
 
 pub fn open(path: &Path, oflag: libc::c_int) -> io::Result<fd_t> {
     let fd = unsafe {
-        libc::open(path.to_str().unwrap().as_ptr() as *const i8, oflag)
+        libc::open(
+            CString::new(path.to_str().unwrap()).unwrap().as_ptr() as *const i8,
+            oflag
+        )
     };
     match fd {
         -1 => Err(io::Error::last_os_error()),
