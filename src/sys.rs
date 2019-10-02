@@ -72,8 +72,8 @@ pub fn dup2(fd: fd_t, fd2: fd_t) -> io::Result<()> {
     let res = unsafe { libc::dup2(fd, fd2) };
     match res {
         -1 => Err(io::Error::last_os_error()),
-         0 => Ok(()),
-         _ => panic!("dup2 returned {}", res),
+        _ if res == fd2 => Ok(()),
+        _ => panic!("dup2 returned {}", res),
     }
 }
 
