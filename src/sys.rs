@@ -123,7 +123,8 @@ pub fn open(path: &Path, oflag: libc::c_int) -> io::Result<fd_t> {
     let fd = unsafe {
         libc::open(
             CString::new(path.to_str().unwrap()).unwrap().as_ptr() as *const i8,
-            oflag
+            oflag,
+            0o666  // FIXME: Pass in the mode.
         )
     };
     match fd {

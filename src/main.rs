@@ -29,11 +29,19 @@ fn main() {
         std::process::exit(exitcode::OSERR);
     });
     if child_pid == 0 {
+        // Child process.
+        let _fds = spec.fds.iter().map(|fd_spec| {
+            ir::fd::create_fd(fd_spec.fd, &fd_spec.spec)
+        }).collect::<Vec<_>>();
+
         let exe = &spec.argv[0];
         let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();
+
+        // FIXME: Send this back to the parent process.
         eprintln!("failed to exec: {}", err);
     }
     else {
+        // Parent process.
         let (wait_pid, status, rusage) = sys::wait4(child_pid, 0).ok().unwrap();
         assert_eq!(wait_pid, child_pid);  // FIXME: Errors.
         let result = result::Result { pid: child_pid, status, rusage };

@@ -1,5 +1,7 @@
-- [ ] capture output into results
 - [ ] output fd (stdout, stderr, etc) to file
+- [ ] default "flags": "Default" in fd spec
+- [ ] open() mode on O_CREAT
+- [ ] capture output into results
 - [ ] merge output fds
 - [ ] multiple procs in a single file, run in parallel
 - [ ] results to file

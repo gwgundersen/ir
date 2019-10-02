@@ -6,7 +6,8 @@
     {
       "fd": 1,
       "file": {
-        "path": "out-file.stdout"
+        "path": "out-file.stdout",
+        "flags": "Default"
       }
     }
   ]
