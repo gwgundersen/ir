@@ -1,4 +1,3 @@
-use libc::c_int;
 use serde::{Serialize, Deserialize};
 use std::error::Error;
 use std::fs::File;
@@ -8,12 +7,13 @@ use std::string::String;
 
 use crate::environ;
 use crate::fd;
+use crate::sys;
 
 #[derive(Serialize, Deserialize, Default, Debug)]
 #[serde(deny_unknown_fields)]
 #[serde(default)]
 pub struct FdSpec {
-    pub fd: c_int,
+    pub fd: sys::fd_t,
     #[serde(flatten)]
     pub spec: fd::spec::Fd,
 }
