@@ -29,9 +29,10 @@ fn main() {
         std::process::exit(exitcode::OSERR);
     });
     if child_pid == 0 {
+        // FIXME: Collect errors and send to parent.
         // Child process.
         let _fds = spec.fds.iter().map(|fd_spec| {
-            ir::fd::create_fd(fd_spec.fd, &fd_spec.spec)
+            ir::fd::create_fd(fd_spec.fd, &fd_spec.spec).unwrap()
         }).collect::<Vec<_>>();
 
         let exe = &spec.argv[0];
@@ -48,6 +49,7 @@ fn main() {
 
         eprintln!("");
         result::print(&result);
+        println!("");
     }
 
     std::process::exit(exitcode::OK);
