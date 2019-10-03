@@ -1,8 +1,6 @@
-- [ ] output fd (stdout, stderr, etc) to file
-- [ ] open() mode on O_CREAT
-- [ ] capture output into results
-- [ ] capture child proc setup errors and send back to parent
 - [ ] merge output fds
+- [ ] capture output into results (memory or tempfile?)
+- [ ] capture child proc setup errors and send back to parent
 - [ ] multiple procs in a single file, run in parallel
 - [ ] results to file
 - [ ] periodic update of results file while running
@@ -39,4 +37,6 @@
 - [x] split out lib
 - [x] set up integration test
 - [x] default "flags": "Default" in fd spec
+- [x] output fd (stdout, stderr, etc) to file
+- [x] open() mode on O_CREAT
 

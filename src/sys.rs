@@ -11,7 +11,7 @@ use std::vec::Vec;
 use crate::environ::Env;
 
 #[allow(non_camel_case_types)]
-pub type fd_t = libc::c_int;
+pub type fd_t = c_int;
 
 //------------------------------------------------------------------------------
 
@@ -119,13 +119,11 @@ pub fn getpid() -> pid_t {
     unsafe { libc::getpid() }
 }
 
-pub fn open(path: &Path, oflag: libc::c_int) -> io::Result<fd_t> {
+pub fn open(path: &Path, oflag: c_int, mode: c_int) -> io::Result<fd_t> {
     let fd = unsafe {
         libc::open(
             CString::new(path.to_str().unwrap()).unwrap().as_ptr() as *const i8,
-            oflag,
-            0o666  // FIXME: Pass in the mode.
-        )
+            oflag, mode)
     };
     match fd {
         -1 => Err(io::Error::last_os_error()),
