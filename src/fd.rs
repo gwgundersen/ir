@@ -1,5 +1,6 @@
 pub mod spec {
 
+    use crate::sys::fd_t;
     use libc::c_int;
     use serde::{Serialize, Deserialize};
     use std::path::PathBuf;
@@ -41,15 +42,19 @@ pub mod spec {
     #[serde(deny_unknown_fields)]
     #[serde(rename_all="lowercase")]
     pub enum Fd {
+        /// Inherit this fd from the parent process, if any.
         Inherit,
 
+        /// Close this fd, if it's open.
         Close,
 
+        /// Open this fd to /dev/null.
         Null {
             #[serde(default)]
             flags: OpenFlag,
         },
 
+        /// Open this fd to a file.
         File { 
             path: PathBuf,
             #[serde(default)]
@@ -59,7 +64,10 @@ pub mod spec {
             // format
         },
 
-        // Dup
+        /// Duplicate another existing fd to this one.
+        Dup {
+            fd: fd_t
+        },
     }
 
     impl Default for Fd {
@@ -147,6 +155,21 @@ impl Fd for File {
 
 //------------------------------------------------------------------------------
 
+struct Dup {
+}
+
+impl Dup {
+    fn new(fd: fd_t, other_fd: fd_t) -> io::Result<Dup> {
+        sys::dup2(other_fd, fd)?;
+        Ok(Dup {})
+    }
+}
+
+impl Fd for Dup {
+}
+
+//------------------------------------------------------------------------------
+
 pub fn create_fd(fd: fd_t, fd_spec: &spec::Fd) -> io::Result<Box<dyn Fd>> {
     Ok(match fd_spec {
         spec::Fd::Inherit
@@ -157,6 +180,8 @@ pub fn create_fd(fd: fd_t, fd_spec: &spec::Fd) -> io::Result<Box<dyn Fd>> {
             => Box::new(File::new(fd, Path::new("/dev/null"), flags, 0)?),
         spec::Fd::File { path, flags, mode }
             => Box::new(File::new(fd, path, flags, *mode)?),
+        spec::Fd::Dup { fd: other_fd }
+            => Box::new(Dup::new(fd, *other_fd)?),
     })
 }
 

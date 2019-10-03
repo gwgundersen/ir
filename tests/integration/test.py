@@ -10,6 +10,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 print("message 0 to stdout")
+sys.stdout.flush()
 print("message 1 to stderr", file=sys.stderr)
 print("message 2 to stdout")
 

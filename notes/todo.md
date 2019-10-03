@@ -1,4 +1,3 @@
-- [ ] merge output fds
 - [ ] capture output into results (memory or tempfile?)
 - [ ] capture child proc setup errors and send back to parent
 - [ ] multiple procs in a single file, run in parallel
@@ -41,4 +40,5 @@
 - [x] output fd (stdout, stderr, etc) to file
 - [x] open() mode on O_CREAT
 - [x] add exit code / signum to result JSON
+- [x] merge output fds
 
