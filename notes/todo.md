@@ -1,3 +1,4 @@
+- [ ] add exit code / signum to result JSON
 - [ ] merge output fds
 - [ ] capture output into results (memory or tempfile?)
 - [ ] capture child proc setup errors and send back to parent
