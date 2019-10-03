@@ -1,5 +1,4 @@
 - [ ] output fd (stdout, stderr, etc) to file
-- [ ] default "flags": "Default" in fd spec
 - [ ] open() mode on O_CREAT
 - [ ] capture output into results
 - [ ] merge output fds
@@ -26,9 +25,17 @@
 - [ ] build a spec from a running process
 - [ ] compression support for output files
 - [ ] input/output fd from/to network (tcp, udp, websocket, REST API)
+- file opening improvements
+  - [ ] specify file mode as "0600"
+  - [ ] specify file mode as "rw-r-----"
+  - [ ] specify file mode as "u+rw g+r"
+  - [ ] special file mode, that overrides umask
+  - [ ] specify group for file
+  - [ ] create parent dirs
 
 ### Done
 
 - [x] split out lib
 - [x] set up integration test
+- [x] default "flags": "Default" in fd spec
 
