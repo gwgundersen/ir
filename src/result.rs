@@ -1,4 +1,4 @@
-use libc::{pid_t, rusage};
+use libc::{c_int, pid_t, rusage};
 use serde::{Serialize};
 
 //------------------------------------------------------------------------------
@@ -79,12 +79,36 @@ pub struct Result {
     pub pid: pid_t,
 
     /// Pid status, which combines exit code and signum.
-    pub status: i32,
+    pub status: c_int,
+    /// Exit code (low 8 bits), if terminated with exit.
+    pub exit_code: Option<i32>,
+    /// Signal number, if terminated by signal.
+    pub signum: Option<i32>,
+    /// Whether the process produced a core dump, if terminated by signal.
+    pub core_dump: bool,
 
     /// Resource usage for the process itself.
     #[serde(with = "libc_serde::Rusage")]
     pub rusage: rusage,
 
+}
+
+impl Result {
+    pub fn new(pid: pid_t, status: c_int, rusage: rusage) -> Result {
+        let (exit_code, signum, core_dump)= unsafe {
+            if libc::WIFEXITED(status) {
+                (Some(libc::WEXITSTATUS(status)), None, false)
+            } else {
+                (None, Some(libc::WTERMSIG(status)), libc::WCOREDUMP(status))
+            }
+        };
+        Result {
+            pid,
+            status,
+            exit_code, signum, core_dump,
+            rusage
+        }
+    }
 }
 
 fn time_to_sec(time: libc::timeval) -> f64 {

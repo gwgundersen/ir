@@ -45,7 +45,7 @@ fn main() {
         // Parent process.
         let (wait_pid, status, rusage) = sys::wait4(child_pid, 0).ok().unwrap();
         assert_eq!(wait_pid, child_pid);  // FIXME: Errors.
-        let result = result::Result { pid: child_pid, status, rusage };
+        let result = result::Result::new(child_pid, status, rusage);
 
         eprintln!("");
         result::print(&result);
