@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "tests/test.py",
+    "--exit", "42"
+  ],
+  "fds": [
+    {
+      "fd": 1,
+      "file": {
+        "path": "stdout.dat"
+      }
+    },
+    {
+      "fd": 2,
+      "file": {
+        "path": "stderr.dat"
+      }
+    }
+  ]
+}
