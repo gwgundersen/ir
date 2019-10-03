@@ -7,6 +7,7 @@
 - [ ] rusage for self vs children
 - [ ] input fd (stdin etc) from file
 - [ ] cwd
+- [ ] cwd before interpreting spec?
 - [ ] umask
 - [ ] pdeath_sig
 - [ ] signal disposition
