@@ -1,6 +1,7 @@
 - [ ] output fd (stdout, stderr, etc) to file
 - [ ] open() mode on O_CREAT
 - [ ] capture output into results
+- [ ] capture child proc setup errors and send back to parent
 - [ ] merge output fds
 - [ ] multiple procs in a single file, run in parallel
 - [ ] results to file
@@ -30,8 +31,8 @@
   - [ ] specify file mode as "rw-r-----"
   - [ ] specify file mode as "u+rw g+r"
   - [ ] special file mode, that overrides umask
-  - [ ] specify group for file
-  - [ ] create parent dirs
+  - [ ] specify group for created file
+  - [ ] create parent dirs for created file
 
 ### Done
 
