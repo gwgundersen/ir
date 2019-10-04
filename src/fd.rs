@@ -68,6 +68,12 @@ pub mod spec {
         Dup {
             fd: fd_t
         },
+
+        /// Capture output from fd; include in results.
+        Capture {
+            // format: raw or text (encoding?)
+        },
+
     }
 
     impl Default for Fd {
@@ -81,6 +87,8 @@ pub mod spec {
 use std::boxed::Box;
 use std::io;
 use std::path::Path;
+use std::path::PathBuf;
+use crate::result::ProcResult;
 use crate::sys;
 use crate::sys::fd_t;
 use libc;
@@ -105,6 +113,9 @@ fn get_oflags(flags: &spec::OpenFlag, fd: fd_t) -> libc::c_int {
 }
 
 pub trait Fd {
+    fn record(&self, _result: &mut ProcResult) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -170,6 +181,26 @@ impl Fd for Dup {
 
 //------------------------------------------------------------------------------
 
+struct Capture {
+    // FIXME: For now, via temp file.
+    path: PathBuf,
+    fd: fd_t,
+}
+
+impl Capture {
+    fn new(fd: fd_t) -> io::Result<Capture> {
+        Ok(Capture { path: PathBuf::new(), fd: fd })
+    }
+}
+
+impl Fd for Capture {
+    fn record(&self, result: &mut ProcResult) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+//------------------------------------------------------------------------------
+
 pub fn create_fd(fd: fd_t, fd_spec: &spec::Fd) -> io::Result<Box<dyn Fd>> {
     Ok(match fd_spec {
         spec::Fd::Inherit
@@ -182,6 +213,8 @@ pub fn create_fd(fd: fd_t, fd_spec: &spec::Fd) -> io::Result<Box<dyn Fd>> {
             => Box::new(File::new(fd, path, flags, *mode)?),
         spec::Fd::Dup { fd: other_fd }
             => Box::new(Dup::new(fd, *other_fd)?),
+        spec::Fd::Capture {}
+            => Box::new(Capture::new(fd)?),
     })
 }
 

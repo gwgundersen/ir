@@ -1,4 +1,5 @@
-- [ ] capture output into results (memory or tempfile?)
+- [ ] capture fd into results (memory or tempfile?)
+- [ ] feed input into fd
 - [ ] capture child proc setup errors and send back to parent
 - [ ] multiple procs in a single file, run in parallel
 - [ ] results to file

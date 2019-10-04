@@ -53,7 +53,7 @@
     
     - `{"format": "text"}`: Raw but cleaned for UTF-8. (??)
 
-    - `{"format": "capture"}`: Timestamped binary transicript format.
+    - `{"format": "transcript"}`: Timestamped binary transicript format.
 
     - FIXME: tcp, udp, http, websocket?
     

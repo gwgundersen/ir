@@ -3,7 +3,7 @@ extern crate libc;
 use libc::{c_int, pid_t, rusage};
 use std::ffi::CString;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::mem::MaybeUninit;
 use std::string::String;
 use std::vec::Vec;
@@ -117,6 +117,19 @@ pub fn fork() -> io::Result<pid_t> {
 
 pub fn getpid() -> pid_t {
     unsafe { libc::getpid() }
+}
+
+pub fn mkstemp(template: String) -> io::Result<(PathBuf, fd_t)> {
+    let path = CString::new(template)?;
+    let (fd, path) = unsafe {
+        let ptr = path.into_raw();
+        (libc::mkstemp(ptr), CString::from_raw(ptr))
+    };
+    match fd {
+        -1 => Err(io::Error::last_os_error()),
+        _ if fd >= 0 => Ok((PathBuf::from(path.into_string().unwrap()), fd)),
+        _ => panic!("mkstemp returned {}", fd),
+    }
 }
 
 pub fn open(path: &Path, oflag: c_int, mode: c_int) -> io::Result<fd_t> {

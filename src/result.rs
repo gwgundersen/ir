@@ -74,7 +74,7 @@ mod libc_serde {
 }
 
 #[derive(Serialize)]
-pub struct Result {
+pub struct ProcResult {
     /// The pid with which the process ran.
     pub pid: pid_t,
 
@@ -93,8 +93,8 @@ pub struct Result {
 
 }
 
-impl Result {
-    pub fn new(pid: pid_t, status: c_int, rusage: rusage) -> Result {
+impl ProcResult {
+    pub fn new(pid: pid_t, status: c_int, rusage: rusage) -> ProcResult {
         let (exit_code, signum, core_dump)= unsafe {
             if libc::WIFEXITED(status) {
                 (Some(libc::WEXITSTATUS(status)), None, false)
@@ -102,7 +102,7 @@ impl Result {
                 (None, Some(libc::WTERMSIG(status)), libc::WCOREDUMP(status))
             }
         };
-        Result {
+        ProcResult {
             pid,
             status,
             exit_code, signum, core_dump,
@@ -115,7 +115,7 @@ fn time_to_sec(time: libc::timeval) -> f64 {
     time.tv_sec as f64 + 1e-6 * time.tv_usec as f64
 }
 
-impl Result {
+impl ProcResult {
     /// User time in s.
     pub fn utime(&self) -> f64 {
         time_to_sec(self.rusage.ru_utime)
@@ -127,7 +127,7 @@ impl Result {
     }
 }
 
-pub fn print(result: &Result) {
+pub fn print(result: &ProcResult) {
     serde_json::to_writer(std::io::stdout(), result).unwrap();
 }
 
