@@ -119,7 +119,7 @@ pub fn getpid() -> pid_t {
     unsafe { libc::getpid() }
 }
 
-pub fn mkstemp(template: String) -> io::Result<(PathBuf, fd_t)> {
+pub fn mkstemp(template: &str) -> io::Result<(PathBuf, fd_t)> {
     let path = CString::new(template)?;
     let (fd, path) = unsafe {
         let ptr = path.into_raw();

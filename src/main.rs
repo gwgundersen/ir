@@ -24,6 +24,15 @@ fn main() {
 
     let env = environ::build(std::env::vars(), &spec.env);
 
+    // Build fd managers.
+    let fds = spec.fds.iter().map(|fd_spec| {
+        ir::fd::create_fd(fd_spec.fd, &fd_spec.spec).unwrap()
+    }).collect::<Vec<_>>();
+
+    for &mut fd in fds {
+        (*fd).open_in_parent();
+    }
+
     let child_pid = sys::fork().unwrap_or_else(|err| {
         eprintln!("failed to fork: {}", err);
         std::process::exit(exitcode::OSERR);
@@ -31,9 +40,6 @@ fn main() {
     if child_pid == 0 {
         // FIXME: Collect errors and send to parent.
         // Child process.
-        let _fds = spec.fds.iter().map(|fd_spec| {
-            ir::fd::create_fd(fd_spec.fd, &fd_spec.spec).unwrap()
-        }).collect::<Vec<_>>();
 
         let exe = &spec.argv[0];
         let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();

@@ -5,7 +5,7 @@ pub mod spec {
     use serde::{Serialize, Deserialize};
     use std::path::PathBuf;
 
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
     #[serde(deny_unknown_fields)]
     pub enum OpenFlag {
         // FIXME: Generalize.
@@ -86,7 +86,9 @@ pub mod spec {
 
 use std::boxed::Box;
 use std::io;
-use std::path::Path;
+use std::io::Read;
+use std::io::Seek;
+use std::os::unix::io::FromRawFd;
 use std::path::PathBuf;
 use crate::result::ProcResult;
 use crate::sys;
@@ -113,7 +115,23 @@ fn get_oflags(flags: &spec::OpenFlag, fd: fd_t) -> libc::c_int {
 }
 
 pub trait Fd {
-    fn record(&self, _result: &mut ProcResult) -> io::Result<()> {
+    /// Called before fork().
+    fn open_in_parent(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+
+    /// Called after fork(), in child process.
+    fn open_in_child(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+
+    /// Called in parent process after wait().
+    fn close_in_parent(&mut self, _result: &mut ProcResult) -> io::Result<()> {
+        Ok(())
+    }
+
+    /// Called only if exec() fails.
+    fn close_in_child(&mut self) -> io::Result<()> {
         Ok(())
     }
 }
@@ -127,74 +145,122 @@ impl Fd for Inherit {
 }
 
 impl Inherit {
-    fn new(_fd: fd_t) -> io::Result<Inherit> { Ok(Inherit {}) }
+    fn new(_fd: fd_t) -> Inherit { Inherit {} }
 }
 
 //------------------------------------------------------------------------------
 
 struct Close {
+    fd: fd_t,
 }
 
 impl Close {
-    fn new(fd: fd_t) -> io::Result<Close> {
-        sys::close(fd)?;
-        Ok(Close {})
+    fn new(fd: fd_t) -> Close {
+        Close { fd }
     }
 }
 
 impl Fd for Close {
+    fn open_in_child(&mut self) -> io::Result<()> {
+        sys::close(self.fd)?;
+        Ok(())
+    }
 }
 
 //------------------------------------------------------------------------------
 
 struct File {
+    fd: fd_t,
+    path: PathBuf,
+    oflags: libc::c_int,
+    mode: libc::c_int,
 }
 
 impl File {
-    fn new(fd: fd_t, path: &Path, flags: &spec::OpenFlag, mode: libc::c_int)
-           -> io::Result<File>
+    fn new(fd: fd_t, path: PathBuf, flags: spec::OpenFlag, mode: libc::c_int)
+        -> File
     {
-        let file_fd = sys::open(path, get_oflags(flags, fd), mode)?;
-        sys::dup2(file_fd, fd)?;
-        sys::close(file_fd)?;
-        Ok(File {})
+        File { fd, path, oflags: get_oflags(&flags, fd), mode }
     }
 }
+        
 
 impl Fd for File {
+    fn open_in_child(&mut self) -> io::Result<()>
+    {
+        let file_fd = sys::open(&self.path, self.oflags, self.mode)?;
+        sys::dup2(file_fd, self.fd)?;
+        sys::close(file_fd)?;
+        Ok(())
+    }
 }
 
 //------------------------------------------------------------------------------
 
 struct Dup {
+    fd: fd_t,
+    /// File descriptor that will be duplicated.
+    dup_fd: fd_t,
 }
 
 impl Dup {
-    fn new(fd: fd_t, other_fd: fd_t) -> io::Result<Dup> {
-        sys::dup2(other_fd, fd)?;
-        Ok(Dup {})
+    fn new(fd: fd_t, dup_fd: fd_t) -> Dup {
+        Dup { fd, dup_fd }
     }
 }
 
 impl Fd for Dup {
+    fn open_in_child(&mut self) -> io::Result<()> {
+        sys::dup2(self.dup_fd, self.fd)?;
+        Ok(())
+    }
 }
 
 //------------------------------------------------------------------------------
 
-struct Capture {
-    // FIXME: For now, via temp file.
-    path: PathBuf,
+struct TempFileCapture {
     fd: fd_t,
+    tmp_fd: fd_t,
 }
 
-impl Capture {
-    fn new(fd: fd_t) -> io::Result<Capture> {
-        Ok(Capture { path: PathBuf::new(), fd: fd })
+// FIXME: Template.
+const TMP_TEMPLATE: &str = "/tmp/ir-capture-XXXXXXXXXXXX";
+
+impl TempFileCapture {
+    fn new(fd: fd_t) -> TempFileCapture {
+        TempFileCapture { fd, tmp_fd: -1 }
     }
 }
 
-impl Fd for Capture {
-    fn record(&self, result: &mut ProcResult) -> io::Result<()> {
+impl Fd for TempFileCapture {
+    fn open_in_parent(&mut self) -> io::Result<()> {
+        let (tmp_path, tmp_fd) = sys::mkstemp(TMP_TEMPLATE)?;
+        eprintln!("capturing {} to {} (unlinked)", self.fd, tmp_path.to_str().unwrap());
+        std::fs::remove_file(tmp_path)?;
+        self.tmp_fd = tmp_fd;
+        Ok(())
+    }
+
+    fn open_in_child(&mut self) -> io::Result<()> {
+        eprintln!("duping {} from tmp fd", self.fd);
+        sys::dup2(self.tmp_fd, self.fd)?;
+        sys::close(self.tmp_fd)?;
+        self.tmp_fd = -1;
+        Ok(())
+    }
+
+    fn close_in_parent(&mut self, result: &mut ProcResult) -> io::Result<()> {
+        let mut file = unsafe {
+            let file = std::fs::File::from_raw_fd(self.tmp_fd);
+            self.tmp_fd = -1;
+            file
+        };
+        file.seek(std::io::SeekFrom::Start(0))?;
+        let mut reader = std::io::BufReader::new(file);
+        let mut buf: Vec<u8> = Vec::new();
+        let size = reader.read_to_end(&mut buf)?;
+        eprintln!("read {} bytes from temp file", size);
+
         Ok(())
     }
 }
@@ -204,17 +270,17 @@ impl Fd for Capture {
 pub fn create_fd(fd: fd_t, fd_spec: &spec::Fd) -> io::Result<Box<dyn Fd>> {
     Ok(match fd_spec {
         spec::Fd::Inherit
-            => Box::new(Inherit::new(fd)?),
+            => Box::new(Inherit::new(fd)),
         spec::Fd::Close
-            => Box::new(Close::new(fd)?),
+            => Box::new(Close::new(fd)),
         spec::Fd::Null { flags }
-            => Box::new(File::new(fd, Path::new("/dev/null"), flags, 0)?),
+            => Box::new(File::new(fd, PathBuf::from("/dev/null"), *flags, 0)),
         spec::Fd::File { path, flags, mode }
-            => Box::new(File::new(fd, path, flags, *mode)?),
+            => Box::new(File::new(fd, path.to_path_buf(), *flags, *mode)),
         spec::Fd::Dup { fd: other_fd }
-            => Box::new(Dup::new(fd, *other_fd)?),
+            => Box::new(Dup::new(fd, *other_fd)),
         spec::Fd::Capture {}
-            => Box::new(Capture::new(fd)?),
+            => Box::new(TempFileCapture::new(fd)),
     })
 }
 
