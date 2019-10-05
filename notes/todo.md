@@ -1,6 +1,7 @@
 - [ ] capture fd into results (memory or tempfile?)
 - [ ] feed input into fd
 - [ ] capture child proc setup errors and send back to parent
+- [ ] fd to named temporary file, with path in result
 - [ ] multiple procs in a single file, run in parallel
 - [ ] results to file
 - [ ] periodic update of results file while running
@@ -13,6 +14,7 @@
 - [ ] signal disposition
 - [ ] transcript
 - [ ] transcript client lib (Python?)
+- [ ] handle signals and shut down cleanly
 - [ ] don't wait; fire and forget (certain options only)
 - [ ] daemonize
 - [ ] report child pid to caller, somehow?
