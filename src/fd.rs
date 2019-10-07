@@ -90,7 +90,7 @@ use std::io::Read;
 use std::io::Seek;
 use std::os::unix::io::FromRawFd;
 use std::path::PathBuf;
-use crate::result::ProcResult;
+use crate::result::FdResult;
 use crate::sys;
 use crate::sys::fd_t;
 use libc;
@@ -115,23 +115,25 @@ fn get_oflags(flags: &spec::OpenFlag, fd: fd_t) -> libc::c_int {
 }
 
 pub trait Fd {
+    fn get_fd(&self) -> fd_t;
+
     /// Called before fork().
-    fn open_in_parent(&mut self) -> io::Result<()> {
+    fn set_up_in_parent(&mut self) -> io::Result<()> {
         Ok(())
     }
 
     /// Called after fork(), in child process.
-    fn open_in_child(&mut self) -> io::Result<()> {
+    fn set_up_in_child(&mut self) -> io::Result<()> {
         Ok(())
     }
 
     /// Called in parent process after wait().
-    fn close_in_parent(&mut self, _result: &mut ProcResult) -> io::Result<()> {
-        Ok(())
+    fn clean_up_in_parent(&mut self) -> io::Result<(Option<FdResult>)> {
+        Ok(None)
     }
 
     /// Called only if exec() fails.
-    fn close_in_child(&mut self) -> io::Result<()> {
+    fn clean_up_in_child(&mut self) -> io::Result<()> {
         Ok(())
     }
 }
@@ -139,13 +141,15 @@ pub trait Fd {
 //------------------------------------------------------------------------------
 
 struct Inherit {
+    fd: fd_t,
 }
 
 impl Fd for Inherit {
+    fn get_fd(&self) -> fd_t { self.fd }
 }
 
 impl Inherit {
-    fn new(_fd: fd_t) -> Inherit { Inherit {} }
+    fn new(fd: fd_t) -> Inherit { Inherit { fd } }
 }
 
 //------------------------------------------------------------------------------
@@ -161,7 +165,9 @@ impl Close {
 }
 
 impl Fd for Close {
-    fn open_in_child(&mut self) -> io::Result<()> {
+    fn get_fd(&self) -> fd_t { self.fd }
+
+    fn set_up_in_child(&mut self) -> io::Result<()> {
         sys::close(self.fd)?;
         Ok(())
     }
@@ -186,7 +192,9 @@ impl File {
         
 
 impl Fd for File {
-    fn open_in_child(&mut self) -> io::Result<()>
+    fn get_fd(&self) -> fd_t { self.fd }
+
+    fn set_up_in_child(&mut self) -> io::Result<()>
     {
         let file_fd = sys::open(&self.path, self.oflags, self.mode)?;
         sys::dup2(file_fd, self.fd)?;
@@ -210,7 +218,9 @@ impl Dup {
 }
 
 impl Fd for Dup {
-    fn open_in_child(&mut self) -> io::Result<()> {
+    fn get_fd(&self) -> fd_t { self.fd }
+
+    fn set_up_in_child(&mut self) -> io::Result<()> {
         sys::dup2(self.dup_fd, self.fd)?;
         Ok(())
     }
@@ -233,7 +243,9 @@ impl TempFileCapture {
 }
 
 impl Fd for TempFileCapture {
-    fn open_in_parent(&mut self) -> io::Result<()> {
+    fn get_fd(&self) -> fd_t { self.fd }
+
+    fn set_up_in_parent(&mut self) -> io::Result<()> {
         let (tmp_path, tmp_fd) = sys::mkstemp(TMP_TEMPLATE)?;
         eprintln!("capturing {} to {} (unlinked)", self.fd, tmp_path.to_str().unwrap());
         std::fs::remove_file(tmp_path)?;
@@ -241,7 +253,7 @@ impl Fd for TempFileCapture {
         Ok(())
     }
 
-    fn open_in_child(&mut self) -> io::Result<()> {
+    fn set_up_in_child(&mut self) -> io::Result<()> {
         eprintln!("duping {} from tmp fd", self.fd);
         sys::dup2(self.tmp_fd, self.fd)?;
         sys::close(self.tmp_fd)?;
@@ -249,7 +261,7 @@ impl Fd for TempFileCapture {
         Ok(())
     }
 
-    fn close_in_parent(&mut self, result: &mut ProcResult) -> io::Result<()> {
+    fn clean_up_in_parent(&mut self) -> io::Result<(Option<FdResult>)> {
         let mut file = unsafe {
             let file = std::fs::File::from_raw_fd(self.tmp_fd);
             self.tmp_fd = -1;
@@ -257,11 +269,12 @@ impl Fd for TempFileCapture {
         };
         file.seek(std::io::SeekFrom::Start(0))?;
         let mut reader = std::io::BufReader::new(file);
-        let mut buf: Vec<u8> = Vec::new();
-        let size = reader.read_to_end(&mut buf)?;
+
+        let mut bytes: Vec<u8> = Vec::new();
+        let size = reader.read_to_end(&mut bytes)?;
         eprintln!("read {} bytes from temp file", size);
 
-        Ok(())
+        Ok(Some(FdResult::Capture { bytes }))
     }
 }
 

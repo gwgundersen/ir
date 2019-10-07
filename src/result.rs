@@ -1,4 +1,6 @@
+use crate::sys::fd_t;
 use libc::{c_int, pid_t, rusage};
+use std::path::PathBuf;
 use serde::{Serialize};
 
 //------------------------------------------------------------------------------
@@ -73,6 +75,19 @@ mod libc_serde {
 
 }
 
+//------------------------------------------------------------------------------
+
+#[derive(Serialize)]
+pub enum FdResult {
+    File {
+        path: PathBuf,
+    },
+
+    Capture {
+        bytes: Vec<u8>,
+    },
+}
+
 #[derive(Serialize)]
 pub struct ProcResult {
     /// The pid with which the process ran.
@@ -87,10 +102,13 @@ pub struct ProcResult {
     /// Whether the process produced a core dump, if terminated by signal.
     pub core_dump: bool,
 
+    /// Fd results.
+    /// FIXME: Associative map from fd instead?
+    pub fds: Vec<(fd_t, FdResult)>,
+
     /// Resource usage for the process itself.
     #[serde(with = "libc_serde::Rusage")]
     pub rusage: rusage,
-
 }
 
 impl ProcResult {
@@ -102,11 +120,13 @@ impl ProcResult {
                 (None, Some(libc::WTERMSIG(status)), libc::WCOREDUMP(status))
             }
         };
+        let fds: Vec<(fd_t, FdResult)> = Vec::new();
         ProcResult {
             pid,
             status,
             exit_code, signum, core_dump,
-            rusage
+            fds,
+            rusage,
         }
     }
 }

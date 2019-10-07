@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "/bin/echo", "Hello, world!"
+  ],
+  "fds": [
+    {
+      "fd": 1,
+      "capture": {
+      }
+    }
+  ]
+}

@@ -25,12 +25,15 @@ fn main() {
     let env = environ::build(std::env::vars(), &spec.env);
 
     // Build fd managers.
-    let fds = spec.fds.iter().map(|fd_spec| {
+    let mut fds = spec.fds.iter().map(|fd_spec| {
         ir::fd::create_fd(fd_spec.fd, &fd_spec.spec).unwrap()
     }).collect::<Vec<_>>();
 
-    for &mut fd in fds {
-        (*fd).open_in_parent();
+    for fd in &mut fds {
+        (*fd).set_up_in_parent().unwrap_or_else(|err| {
+            eprintln!("failed to set up fd {}: {}", fd.get_fd(), err);
+            std::process::exit(exitcode::OSERR);
+        });
     }
 
     let child_pid = sys::fork().unwrap_or_else(|err| {
@@ -38,11 +41,25 @@ fn main() {
         std::process::exit(exitcode::OSERR);
     });
     if child_pid == 0 {
-        // FIXME: Collect errors and send to parent.
         // Child process.
+        // FIXME: Collect errors and send to parent.
+
+        for fd in &mut fds {
+            (*fd).set_up_in_child().unwrap_or_else(|err| {
+                eprintln!("failed to set up fd {}: {}", fd.get_fd(), err);
+                std::process::exit(exitcode::OSERR);
+            });
+        }
 
         let exe = &spec.argv[0];
         let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();
+
+        for fd in &mut fds {
+            (*fd).clean_up_in_child().unwrap_or_else(|err| {
+                eprintln!("failed to clean up fd {}: {}", fd.get_fd(), err);
+                std::process::exit(exitcode::OSERR);
+            });
+        }
 
         // FIXME: Send this back to the parent process.
         eprintln!("failed to exec: {}", err);
@@ -51,7 +68,17 @@ fn main() {
         // Parent process.
         let (wait_pid, status, rusage) = sys::wait4(child_pid, 0).ok().unwrap();
         assert_eq!(wait_pid, child_pid);  // FIXME: Errors.
-        let result = result::ProcResult::new(child_pid, status, rusage);
+        let mut result = result::ProcResult::new(child_pid, status, rusage);
+
+        for fd in &mut fds {
+            match (*fd).clean_up_in_parent().unwrap_or_else(|err| {
+                eprintln!("failed to clean up fd {}: {}", fd.get_fd(), err);
+                std::process::exit(exitcode::OSERR);
+            }) {
+                Some(fd_result) => result.fds.push((fd.get_fd(), fd_result)),
+                None => ()
+            };
+        }
 
         eprintln!("");
         result::print(&result);
