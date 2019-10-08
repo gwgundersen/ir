@@ -34,13 +34,35 @@ pub mod spec {
         fn default() -> Self { Self::Default }
     }
 
-    fn get_default_mode() -> c_int {
-        0o666
+    #[derive(Debug, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    #[serde(rename_all = "lowercase")]
+    pub enum CaptureMode {
+        TempFile,
+        // Memory,
+    }
+
+    impl Default for CaptureMode {
+        fn default() -> Self { Self::TempFile }
     }
 
     #[derive(Debug, Serialize, Deserialize)]
     #[serde(deny_unknown_fields)]
-    #[serde(rename_all="lowercase")]
+    #[serde(rename_all = "lowercase")]
+    pub enum CaptureFormat {
+        Text,
+        // FIXME: Raw... base64?
+    }
+
+    impl Default for CaptureFormat {
+        fn default() -> Self { Self::Text }
+    }
+
+    fn get_default_mode() -> c_int { 0o666 }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    #[serde(rename_all = "lowercase")]
     pub enum Fd {
         /// Inherit this fd from the parent process, if any.
         Inherit,
@@ -71,7 +93,11 @@ pub mod spec {
 
         /// Capture output from fd; include in results.
         Capture {
-            // format: raw or text (encoding?)
+            #[serde(default)]
+            mode: CaptureMode,
+
+            #[serde(default)]
+            format: CaptureFormat,
         },
 
     }
@@ -281,10 +307,10 @@ impl Fd for TempFileCapture {
 
         let mut bytes: Vec<u8> = Vec::new();
         let size = reader.read_to_end(&mut bytes)?;
-        let string = String::from_utf8_lossy(&bytes).into_owned();
+        let text = String::from_utf8_lossy(&bytes).into_owned();
         eprintln!("read {} bytes from temp file", size);
 
-        Ok(Some(FdResult::Capture { string }))
+        Ok(Some(FdResult::Capture { text }))
     }
 }
 
@@ -302,8 +328,11 @@ pub fn create_fd(fd: fd_t, fd_spec: &spec::Fd) -> io::Result<Box<dyn Fd>> {
             => Box::new(File::new(fd, path.to_path_buf(), *flags, *mode)),
         spec::Fd::Dup { fd: other_fd }
             => Box::new(Dup::new(fd, *other_fd)),
-        spec::Fd::Capture {}
-            => Box::new(TempFileCapture::new(fd)),
+        spec::Fd::Capture { mode, format: _format }
+            => match mode {
+                spec::CaptureMode::TempFile
+                    => Box::new(TempFileCapture::new(fd)),
+            }
     })
 }
 

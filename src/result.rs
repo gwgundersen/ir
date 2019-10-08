@@ -79,13 +79,14 @@ mod libc_serde {
 
 #[derive(Serialize)]
 #[serde(rename_all="lowercase")]
+#[serde(untagged)]
 pub enum FdResult {
     File {
         path: PathBuf,
     },
 
     Capture {
-        string: String,
+        text: String,
     },
 }
 

@@ -5,8 +5,7 @@
   "fds": [
     {
       "fd": 1,
-      "capture": {
-      }
+      "capture": {}
     }
   ]
 }

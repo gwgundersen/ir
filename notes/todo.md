@@ -1,7 +1,9 @@
-- [ ] results fds as associative list
 - [ ] capture fd into results via tempfile
 - [ ] capture fd into results via pipe
 - [ ] capture to bytes (but encode how?)
+- spec validation
+  - [ ] no fd is given more than once
+- [ ] 'stdin', 'stdout', 'stderr' aliases to fds
 - [ ] feed input into fd
 - [ ] capture child proc setup errors and send back to parent
 - [ ] fd to named temporary file, with path in result
@@ -47,4 +49,5 @@
 - [x] open() mode on O_CREAT
 - [x] add exit code / signum to result JSON
 - [x] merge output fds
+- [x] results fds as associative list
 
