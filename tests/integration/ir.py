@@ -17,8 +17,8 @@ def run(spec):
         res = subprocess.run(
             [str(IR_EXE), tmp_file.name],
             stdout=subprocess.PIPE,
-            check=True,
         )
+        assert res.returncode == 0, f"ir exited {res.returncode}"
     res = json.loads(res.stdout)
     json.dump(res, sys.stderr, indent=2)
     return res

@@ -1,4 +1,3 @@
-- [ ] https://crates.io/crates/indexmap to preserve fd spec order
 - [ ] set up user docs
 - [ ] capture fd into results via pipe
 - [ ] capture to bytes (but encode how?)
@@ -32,6 +31,7 @@
 - [ ] process groups???
 - [ ] build a spec from a running process
 - [ ] compression support for output files
+- [ ] accept {fd: spec,...} instead of [[fd, spec],...], if order is unimportant
 - [ ] input/output fd from/to network (tcp, udp, websocket, REST API)
 - file opening improvements
   - [ ] specify file mode as "0600"

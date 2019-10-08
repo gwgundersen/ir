@@ -1,5 +1,4 @@
 use serde::{Serialize, Deserialize};
-use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
@@ -15,7 +14,7 @@ use crate::fd;
 pub struct Spec {
     pub argv: Vec<String>,
     pub env: environ::spec::Env,
-    pub fds: BTreeMap<String, fd::spec::Fd>,
+    pub fds: Vec<(String, fd::spec::Fd)>,
 }
 
 pub fn load_spec_file<P: AsRef<Path>>(path: P) -> Result<Spec, Box<dyn Error>> {
