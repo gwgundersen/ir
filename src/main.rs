@@ -71,12 +71,12 @@ fn main() {
         let mut result = result::ProcResult::new(child_pid, status, rusage);
 
         for fd in &mut fds {
-            match (*fd).clean_up_in_parent().unwrap_or_else(|err| {
+            let res = (*fd).clean_up_in_parent().unwrap_or_else(|err| {
                 eprintln!("failed to clean up fd {}: {}", fd.get_fd(), err);
                 std::process::exit(exitcode::OSERR);
-            }) {
-                Some(fd_result) => result.fds.push((fd.get_fd(), fd_result)),
-                None => ()
+            });
+            if let Some(fd_result) = res {
+                result.fds.insert(fd.get_fd(), fd_result);
             };
         }
 

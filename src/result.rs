@@ -1,5 +1,6 @@
 use crate::sys::fd_t;
 use libc::{c_int, pid_t, rusage};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use serde::{Serialize};
 
@@ -105,7 +106,7 @@ pub struct ProcResult {
 
     /// Fd results.
     /// FIXME: Associative map from fd instead?
-    pub fds: Vec<(fd_t, FdResult)>,
+    pub fds: BTreeMap<fd_t, FdResult>,
 
     /// Resource usage for the process itself.
     #[serde(with = "libc_serde::Rusage")]
@@ -121,12 +122,11 @@ impl ProcResult {
                 (None, Some(libc::WTERMSIG(status)), libc::WCOREDUMP(status))
             }
         };
-        let fds: Vec<(fd_t, FdResult)> = Vec::new();
         ProcResult {
             pid,
             status,
             exit_code, signum, core_dump,
-            fds,
+            fds: BTreeMap::new(),
             rusage,
         }
     }
