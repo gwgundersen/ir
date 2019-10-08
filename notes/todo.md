@@ -1,4 +1,6 @@
-- [ ] capture fd into results (memory or tempfile?)
+- [ ] results fds as associative list
+- [ ] capture fd into results via tempfile
+- [ ] capture fd into results via pipe
 - [ ] capture to bytes (but encode how?)
 - [ ] feed input into fd
 - [ ] capture child proc setup errors and send back to parent
