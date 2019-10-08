@@ -76,7 +76,7 @@ fn main() {
                 std::process::exit(exitcode::OSERR);
             });
             if let Some(fd_result) = res {
-                result.fds.insert(fd.get_fd(), fd_result);
+                result.fds.insert(ir::fd::get_fd_name(fd.get_fd()), fd_result);
             };
         }
 

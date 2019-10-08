@@ -1,4 +1,3 @@
-use crate::sys::fd_t;
 use libc::{c_int, pid_t, rusage};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -106,7 +105,7 @@ pub struct ProcResult {
 
     /// Fd results.
     /// FIXME: Associative map from fd instead?
-    pub fds: BTreeMap<fd_t, FdResult>,
+    pub fds: BTreeMap<String, FdResult>,
 
     /// Resource usage for the process itself.
     #[serde(with = "libc_serde::Rusage")]

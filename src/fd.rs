@@ -95,6 +95,15 @@ use crate::sys;
 use crate::sys::fd_t;
 use libc;
 
+pub fn get_fd_name(fd: fd_t) -> String {
+    match fd {
+        0 => "stdin".to_string(),
+        1 => "stdout".to_string(),
+        2 => "stderr".to_string(),
+        _ => fd.to_string(),
+    }
+}
+
 // FIXME: Generalize.
 fn get_oflags(flags: &spec::OpenFlag, fd: fd_t) -> libc::c_int {
     use spec::OpenFlag::*;
