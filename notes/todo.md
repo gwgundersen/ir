@@ -1,4 +1,5 @@
 - [ ] capture fd into results (memory or tempfile?)
+- [ ] capture to bytes (but encode how?)
 - [ ] feed input into fd
 - [ ] capture child proc setup errors and send back to parent
 - [ ] fd to named temporary file, with path in result

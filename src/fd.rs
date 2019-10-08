@@ -272,9 +272,10 @@ impl Fd for TempFileCapture {
 
         let mut bytes: Vec<u8> = Vec::new();
         let size = reader.read_to_end(&mut bytes)?;
+        let string = String::from_utf8_lossy(&bytes).into_owned();
         eprintln!("read {} bytes from temp file", size);
 
-        Ok(Some(FdResult::Capture { bytes }))
+        Ok(Some(FdResult::Capture { string }))
     }
 }
 
