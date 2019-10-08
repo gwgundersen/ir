@@ -1,4 +1,5 @@
-- [ ] capture fd into results via tempfile
+- [ ] https://crates.io/crates/indexmap to preserve fd spec order
+- [ ] set up user docs
 - [ ] capture fd into results via pipe
 - [ ] capture to bytes (but encode how?)
 - spec validation
@@ -50,4 +51,5 @@
 - [x] add exit code / signum to result JSON
 - [x] merge output fds
 - [x] results fds as associative list
+- [x] capture fd into results via tempfile
 

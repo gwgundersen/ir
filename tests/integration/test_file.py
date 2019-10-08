@@ -1,15 +1,15 @@
 import ir
-
+1
 
 def test_stdout_stderr(tmp_path):
     stdout_path = tmp_path / "stdout"
     stderr_path = tmp_path / "stderr"
     res = ir.run({
         "argv": [str(ir.TEST_EXE), "--exit", "42"],
-        "fds": [
-            {"fd": 1, "file": {"path": str(stdout_path)}},
-            {"fd": 2, "file": {"path": str(stderr_path)}},
-        ]
+        "fds": {
+            "1": {"file": {"path": str(stdout_path)}},
+            "2": {"file": {"path": str(stderr_path)}},
+        }
     })
 
     assert res["status"] == 42 << 8
@@ -30,10 +30,10 @@ def test_stdout_stderr_merge(tmp_path):
     stderr_path = tmp_path / "stderr"
     res = ir.run({
         "argv": [str(ir.TEST_EXE), "--exit", "42"],
-        "fds": [
-            {"fd": 2, "file": {"path": str(stderr_path)}},
-            {"fd": 1, "dup": {"fd": 2}},
-        ]
+        "fds": {
+            "stderr": {"file": {"path": str(stderr_path)}},
+            "stdout": {"dup": {"fd": 2}},
+        }
     })
 
     assert res["status"] == 42 << 8

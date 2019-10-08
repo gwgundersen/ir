@@ -5,6 +5,7 @@ extern crate exitcode;
 #[macro_use] extern crate maplit;
 
 use ir::environ;
+use ir::fd::parse_fd;
 use ir::result;
 use ir::spec;
 use ir::sys;
@@ -25,8 +26,12 @@ fn main() {
     let env = environ::build(std::env::vars(), &spec.env);
 
     // Build fd managers.
-    let mut fds = spec.fds.iter().map(|fd_spec| {
-        ir::fd::create_fd(fd_spec.fd, &fd_spec.spec).unwrap()
+    let mut fds = spec.fds.iter().map(|(fd_str, fd_spec)| {
+        let fd = parse_fd(fd_str).unwrap_or_else(|err| {
+            eprintln!("failed to parse fd {}: {}", fd_str, err);
+            std::process::exit(exitcode::OSERR);
+        });
+        ir::fd::create_fd(fd, &fd_spec).unwrap()
     }).collect::<Vec<_>>();
 
     for fd in &mut fds {

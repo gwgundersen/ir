@@ -2,10 +2,7 @@
   "argv": [
     "/bin/echo", "Hello, world!"
   ],
-  "fds": [
-    {
-      "fd": 1,
-      "capture": {}
-    }
-  ]
+  "fds": {
+    "stdout": {"capture": {}}
+  }
 }

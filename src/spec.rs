@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
@@ -7,16 +8,6 @@ use std::string::String;
 
 use crate::environ;
 use crate::fd;
-use crate::sys;
-
-#[derive(Serialize, Deserialize, Default, Debug)]
-#[serde(deny_unknown_fields)]
-#[serde(default)]
-pub struct FdSpec {
-    pub fd: sys::fd_t,
-    #[serde(flatten)]
-    pub spec: fd::spec::Fd,
-}
 
 #[derive(Serialize, Deserialize, Default, Debug)]
 #[serde(deny_unknown_fields)]
@@ -24,7 +15,7 @@ pub struct FdSpec {
 pub struct Spec {
     pub argv: Vec<String>,
     pub env: environ::spec::Env,
-    pub fds: Vec<FdSpec>,
+    pub fds: BTreeMap<String, fd::spec::Fd>,
 }
 
 pub fn load_spec_file<P: AsRef<Path>>(path: P) -> Result<Spec, Box<dyn Error>> {

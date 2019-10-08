@@ -116,10 +116,20 @@ use std::io::Read;
 use std::io::Seek;
 use std::os::unix::io::FromRawFd;
 use std::path::PathBuf;
+use std::result::Result;
 use crate::result::FdResult;
 use crate::sys;
 use crate::sys::fd_t;
 use libc;
+
+pub fn parse_fd(fd: &str) -> Result<fd_t, std::num::ParseIntError> {
+    match fd {
+        "stdin" => Ok(0),
+        "stdout" => Ok(1),
+        "stderr" => Ok(2),
+        _ => fd.parse::<fd_t>(),
+    }
+}
 
 pub fn get_fd_name(fd: fd_t) -> String {
     match fd {
@@ -259,6 +269,8 @@ impl Fd for Dup {
         sys::dup2(self.dup_fd, self.fd)?;
         Ok(())
     }
+
+    // FIXME: Insert path into result.
 }
 
 //------------------------------------------------------------------------------
