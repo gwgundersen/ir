@@ -2,7 +2,7 @@
 - [ ] capture to bytes (but encode how? base64?)
 - spec validation
   - [ ] no fd is given more than once
-- [ ] 'stdin', 'stdout', 'stderr' aliases to fds
+- [ ] 'stdin', 'stdout', 'stderr' aliases to fds, consistently
 - [ ] feed input into fd
 - [ ] capture child proc setup errors and send back to parent
 - [ ] fd to named temporary file, with path in result
