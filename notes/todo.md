@@ -1,6 +1,5 @@
-- [ ] set up user docs
 - [ ] capture fd into results via pipe
-- [ ] capture to bytes (but encode how?)
+- [ ] capture to bytes (but encode how? base64?)
 - spec validation
   - [ ] no fd is given more than once
 - [ ] 'stdin', 'stdout', 'stderr' aliases to fds
@@ -52,4 +51,5 @@
 - [x] merge output fds
 - [x] results fds as associative list
 - [x] capture fd into results via tempfile
+- [x] set up user docs
 
