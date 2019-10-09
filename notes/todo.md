@@ -1,4 +1,3 @@
-- [ ] spec error type
 - [ ] refactor specs into package
 - [ ] capture fd into results via pipe
 - [ ] capture to bytes (but encode how? base64?)
@@ -54,4 +53,5 @@
 - [x] results fds as associative list
 - [x] capture fd into results via tempfile
 - [x] set up user docs
+- [x] spec error type
 
