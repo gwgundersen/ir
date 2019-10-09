@@ -1,3 +1,5 @@
+- [ ] spec error type
+- [ ] refactor specs into package
 - [ ] capture fd into results via pipe
 - [ ] capture to bytes (but encode how? base64?)
 - spec validation
