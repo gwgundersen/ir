@@ -41,6 +41,11 @@
   - [ ] specify group for created file
   - [ ] create parent dirs for created file
 
+### Maybe
+
+- [snafu](https://docs.rs/snafu/0.5.0/snafu/guide/index.html) for error types?
+
+
 ### Done
 
 - [x] split out lib
