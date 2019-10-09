@@ -246,6 +246,10 @@ impl Fd for File {
         sys::close(file_fd)?;
         Ok(())
     }
+
+    fn clean_up_in_parent(&mut self) -> io::Result<(Option<FdResult>)> {
+        Ok(Some(FdResult::File { path: self.path.clone() }))
+    }
 }
 
 //------------------------------------------------------------------------------
