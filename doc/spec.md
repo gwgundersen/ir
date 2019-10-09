@@ -50,7 +50,10 @@ following aliases:
 - `"close"`: The file descriptor is closed, if it is open in the parent.
 
 - `{"null": {"flags": ...}}`: The file descriptor is opened to `/dev/null`.  The
-  open flags may be specified (see below).
+  open flags may be specified (see below).  Such a file descriptor is different
+  from a closed file descriptor: whereas a write to a closed file descriptor
+  will fail, a write to a `/dev/null` file descriptor will succeed but the data
+  discarded.
 
 - 
     ```js
