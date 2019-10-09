@@ -1,5 +1,5 @@
 import ir
-1
+
 
 def test_stdout_stderr(tmp_path):
     stdout_path = tmp_path / "stdout"
