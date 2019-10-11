@@ -110,19 +110,59 @@ pub mod spec {
 
 //------------------------------------------------------------------------------
 
-use std::boxed::Box;
+use crate::res::FdRes;
+use crate::sys;
+use crate::sys::fd_t;
 use std::io;
 use std::io::Read;
 use std::io::Seek;
 use std::os::unix::io::FromRawFd;
 use std::path::PathBuf;
-use std::result::Result;
-use crate::res::FdRes;
-use crate::sys;
-use crate::sys::fd_t;
 use libc;
 
-pub fn parse_fd(fd: &str) -> Result<fd_t, std::num::ParseIntError> {
+//------------------------------------------------------------------------------
+
+#[derive(Debug)]
+pub enum Error {
+    Io(std::io::Error),
+    ParseInt(std::num::ParseIntError),
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match *self {
+            Error::Io(ref err) => err.fmt(f),
+            Error::ParseInt(ref err) => err.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn description(&self) -> &str {
+        match *self {
+            Error::Io(ref err) => err.description(),
+            Error::ParseInt(ref err) => err.description(),
+        }
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Error {
+        Error::Io(err)
+    }
+}
+
+impl From<std::num::ParseIntError> for Error {
+    fn from(err: std::num::ParseIntError) -> Error {
+        Error::ParseInt(err)
+    }
+}
+
+type Result<T> = std::result::Result<T, Error>;
+
+//------------------------------------------------------------------------------
+
+pub fn parse_fd(fd: &str) -> std::result::Result<fd_t, std::num::ParseIntError> {
     match fd {
         "stdin" => Ok(0),
         "stdout" => Ok(1),
@@ -332,7 +372,7 @@ impl Fd for TempFileCapture {
 
 //------------------------------------------------------------------------------
 
-pub fn create_fd(fd: fd_t, fd_spec: &spec::Fd) -> io::Result<Box<dyn Fd>> {
+pub fn create_fd(fd: fd_t, fd_spec: &spec::Fd) -> Result<Box<dyn Fd>> {
     Ok(match fd_spec {
         spec::Fd::Inherit
             => Box::new(Inherit::new(fd)),
