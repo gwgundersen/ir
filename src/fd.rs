@@ -117,7 +117,7 @@ use std::io::Seek;
 use std::os::unix::io::FromRawFd;
 use std::path::PathBuf;
 use std::result::Result;
-use crate::result::FdResult;
+use crate::res::FdRes;
 use crate::sys;
 use crate::sys::fd_t;
 use libc;
@@ -173,7 +173,7 @@ pub trait Fd {
     }
 
     /// Called in parent process after wait().
-    fn clean_up_in_parent(&mut self) -> io::Result<(Option<FdResult>)> {
+    fn clean_up_in_parent(&mut self) -> io::Result<(Option<FdRes>)> {
         Ok(None)
     }
 
@@ -247,8 +247,8 @@ impl Fd for File {
         Ok(())
     }
 
-    fn clean_up_in_parent(&mut self) -> io::Result<(Option<FdResult>)> {
-        Ok(Some(FdResult::File { path: self.path.clone() }))
+    fn clean_up_in_parent(&mut self) -> io::Result<(Option<FdRes>)> {
+        Ok(Some(FdRes::File { path: self.path.clone() }))
     }
 }
 
@@ -312,7 +312,7 @@ impl Fd for TempFileCapture {
         Ok(())
     }
 
-    fn clean_up_in_parent(&mut self) -> io::Result<(Option<FdResult>)> {
+    fn clean_up_in_parent(&mut self) -> io::Result<(Option<FdRes>)> {
         let mut file = unsafe {
             let file = std::fs::File::from_raw_fd(self.tmp_fd);
             self.tmp_fd = -1;
@@ -326,7 +326,7 @@ impl Fd for TempFileCapture {
         let text = String::from_utf8_lossy(&bytes).into_owned();
         eprintln!("read {} bytes from temp file", size);
 
-        Ok(Some(FdResult::Capture { text }))
+        Ok(Some(FdRes::Capture { text }))
     }
 }
 

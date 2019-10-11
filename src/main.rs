@@ -6,7 +6,7 @@ extern crate exitcode;
 
 use ir::environ;
 use ir::fd::parse_fd;
-use ir::result;
+use ir::res;
 use ir::spec;
 use ir::sys;
 
@@ -73,7 +73,7 @@ fn main() {
         // Parent process.
         let (wait_pid, status, rusage) = sys::wait4(child_pid, 0).ok().unwrap();
         assert_eq!(wait_pid, child_pid);  // FIXME: Errors.
-        let mut result = result::ProcResult::new(child_pid, status, rusage);
+        let mut result = res::ProcRes::new(child_pid, status, rusage);
 
         for fd in &mut fds {
             let res = (*fd).clean_up_in_parent().unwrap_or_else(|err| {
@@ -86,7 +86,7 @@ fn main() {
         }
 
         eprintln!("");
-        result::print(&result);
+        res::print(&result);
         println!("");
     }
 

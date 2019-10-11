@@ -1,3 +1,5 @@
+/// Named "Res" to avoid confusion with the `Result` types.
+
 use libc::{c_int, pid_t, rusage};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -80,7 +82,7 @@ mod libc_serde {
 #[derive(Serialize)]
 #[serde(rename_all="lowercase")]
 #[serde(untagged)]
-pub enum FdResult {
+pub enum FdRes {
     File {
         path: PathBuf,
     },
@@ -91,7 +93,7 @@ pub enum FdResult {
 }
 
 #[derive(Serialize)]
-pub struct ProcResult {
+pub struct ProcRes {
     /// The pid with which the process ran.
     pub pid: pid_t,
 
@@ -106,15 +108,15 @@ pub struct ProcResult {
 
     /// Fd results.
     /// FIXME: Associative map from fd instead?
-    pub fds: BTreeMap<String, FdResult>,
+    pub fds: BTreeMap<String, FdRes>,
 
     /// Resource usage for the process itself.
     #[serde(with = "libc_serde::Rusage")]
     pub rusage: rusage,
 }
 
-impl ProcResult {
-    pub fn new(pid: pid_t, status: c_int, rusage: rusage) -> ProcResult {
+impl ProcRes {
+    pub fn new(pid: pid_t, status: c_int, rusage: rusage) -> ProcRes {
         let (exit_code, signum, core_dump)= unsafe {
             if libc::WIFEXITED(status) {
                 (Some(libc::WEXITSTATUS(status)), None, false)
@@ -122,7 +124,7 @@ impl ProcResult {
                 (None, Some(libc::WTERMSIG(status)), libc::WCOREDUMP(status))
             }
         };
-        ProcResult {
+        ProcRes {
             pid,
             status,
             exit_code, signum, core_dump,
@@ -136,7 +138,7 @@ fn time_to_sec(time: libc::timeval) -> f64 {
     time.tv_sec as f64 + 1e-6 * time.tv_usec as f64
 }
 
-impl ProcResult {
+impl ProcRes {
     /// User time in s.
     pub fn utime(&self) -> f64 {
         time_to_sec(self.rusage.ru_utime)
@@ -148,7 +150,7 @@ impl ProcResult {
     }
 }
 
-pub fn print(result: &ProcResult) {
+pub fn print(result: &ProcRes) {
     serde_json::to_writer(std::io::stdout(), result).unwrap();
 }
 

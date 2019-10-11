@@ -3,7 +3,7 @@
 
 pub mod environ;
 pub mod fd;
-pub mod result;
+pub mod res;
 pub mod spec;
 pub mod sys;
 

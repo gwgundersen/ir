@@ -1,4 +1,4 @@
-- [ ] rename Result -> Res
+- [ ] create fd::Error and fd::Result
 - [ ] refactor specs into package
 - [ ] capture fd into results via pipe
 - [ ] capture to bytes (but encode how? base64?)
@@ -61,4 +61,5 @@
 - [x] set up user docs
 - [x] spec error type
 - [x] add file to fd results
+- [x] rename Result -> Res
 
