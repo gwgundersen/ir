@@ -1,11 +1,12 @@
+use crate::environ;
+use crate::fd;
 use serde::{Serialize, Deserialize};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 use std::string::String;
 
-use crate::environ;
-use crate::fd;
+//------------------------------------------------------------------------------
 
 #[derive(Debug)]
 pub enum SpecError {
@@ -44,6 +45,8 @@ impl From<serde_json::error::Error> for SpecError {
 }
 
 type Result<T> = std::result::Result<T, SpecError>;
+
+//------------------------------------------------------------------------------
 
 #[derive(Serialize, Deserialize, Default, Debug)]
 #[serde(deny_unknown_fields)]
