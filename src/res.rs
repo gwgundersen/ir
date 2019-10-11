@@ -92,6 +92,8 @@ pub enum FdRes {
     },
 }
 
+//------------------------------------------------------------------------------
+
 #[derive(Serialize)]
 pub struct ProcRes {
     /// The pid with which the process ran.
@@ -115,6 +117,10 @@ pub struct ProcRes {
     pub rusage: rusage,
 }
 
+fn time_to_sec(time: libc::timeval) -> f64 {
+    time.tv_sec as f64 + 1e-6 * time.tv_usec as f64
+}
+
 impl ProcRes {
     pub fn new(pid: pid_t, status: c_int, rusage: rusage) -> ProcRes {
         let (exit_code, signum, core_dump)= unsafe {
@@ -132,13 +138,7 @@ impl ProcRes {
             rusage,
         }
     }
-}
 
-fn time_to_sec(time: libc::timeval) -> f64 {
-    time.tv_sec as f64 + 1e-6 * time.tv_usec as f64
-}
-
-impl ProcRes {
     /// User time in s.
     pub fn utime(&self) -> f64 {
         time_to_sec(self.rusage.ru_utime)
@@ -150,7 +150,23 @@ impl ProcRes {
     }
 }
 
-pub fn print(result: &ProcRes) {
+//------------------------------------------------------------------------------
+
+#[derive(Default, Serialize)]
+pub struct Res {
+    pub procs: Vec<ProcRes>,
+    pub errors: Vec<String>,
+}
+
+impl Res {
+    pub fn new() -> Res {
+        Res { ..Default::default() }
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub fn print(result: &Res) {
     serde_json::to_writer(std::io::stdout(), result).unwrap();
 }
 
