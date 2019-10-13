@@ -73,19 +73,22 @@ fn main() {
         // Parent process.
         let (wait_pid, status, rusage) = sys::wait4(child_pid, 0).ok().unwrap();
         assert_eq!(wait_pid, child_pid);  // FIXME: Errors.
+
+        let mut result = res::Res::new();
         let mut proc_res = res::ProcRes::new(child_pid, status, rusage);
 
         for fd in &mut fds {
             let res = (*fd).clean_up_in_parent().unwrap_or_else(|err| {
-                eprintln!("failed to clean up fd {}: {}", fd.get_fd(), err);
-                std::process::exit(exitcode::OSERR);
+                result.errors.push(
+                    format!("failed to clean up fd {}: {}", fd.get_fd(), err)
+                );
+                None
             });
             if let Some(fd_result) = res {
                 proc_res.fds.insert(ir::fd::get_fd_name(fd.get_fd()), fd_result);
             };
         }
 
-        let mut result = res::Res::new();
         result.procs.push(proc_res);
 
         eprintln!("");
