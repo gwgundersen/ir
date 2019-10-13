@@ -27,6 +27,7 @@ fn main() {
 
     // Build fd managers.
     let mut fds = spec.fds.iter().map(|(fd_str, fd_spec)| {
+        // FIXME: Parse when deserializing, rather than here.
         let fd = parse_fd(fd_str).unwrap_or_else(|err| {
             eprintln!("failed to parse fd {}: {}", fd_str, err);
             std::process::exit(exitcode::OSERR);
