@@ -7,6 +7,7 @@ extern crate exitcode;
 use ir::environ;
 use ir::fd::parse_fd;
 use ir::res;
+use ir::sel;
 use ir::spec;
 use ir::sys;
 
