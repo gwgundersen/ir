@@ -1,27 +1,45 @@
-use crate::sys::fd_t;
-use libc;
-use std::box::Box;
+use crate::sys::{FdSet, fd_t};
 use std::vec::Vec;
 
 //------------------------------------------------------------------------------
 
-pub enum SelectMode {
-    Read,
-    Write,
-    Error,
+// In C++, I would provide different selectables with dynamic dispatch.  Here,
+// we're not writign a library, and the number of select behaviors will be
+// small, so let's see how it works to use an enum instead.
+
+#[derive(Debug)]
+pub enum Reader {
+    Capture { buf: Vec<u8> },
 }
 
-pub trait Selectable {
-    fn ready() -> ();
+impl Reader {
+    fn ready(&mut self) {
+    }
 }
 
+//------------------------------------------------------------------------------
+
+#[derive(Debug, Default)]
 pub struct Selecter {
-    selables: Vec<(fd_t, mode, Box<dyn Selectable>),
+    readers: Vec<(fd_t, Reader)>,
 }
 
 impl Selecter {
-    pub fn add(fd: fd_t, mode: SelectMode, selable: Box<dyn Selectable>);
-    pub fn remove(fd: fd_t, mode: SelectMode);
-    pub fn select(timeout: f64) -> i32;
+    pub fn new() -> Selecter {
+        Selecter {
+            ..Default::default()
+        }
+    }
+
+    pub fn add_read(&mut self, fd: fd_t, reader: Reader) {
+        self.readers.push((fd, reader));
+    }
+
+    pub fn select(&self, timeout: f64) {
+        let mut read_fds = FdSet::new();
+        for (fd, _) in self.readers.iter() {
+            read_fds.set(*fd);
+        }
+    }
 }
 

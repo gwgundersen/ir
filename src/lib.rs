@@ -4,6 +4,7 @@
 pub mod environ;
 pub mod fd;
 pub mod res;
+pub mod sel;
 pub mod spec;
 pub mod sys;
 
