@@ -59,6 +59,26 @@ where T: IntoIterator<Item = String>
 
 //------------------------------------------------------------------------------
 
+pub struct FdSet(libc::fd_set);
+
+impl FdSet {
+    pub fn new() -> FdSet {
+        let mut set = MaybeUninit::uninit();
+        FdSet(unsafe {
+            libc::FD_ZERO(set.as_mut_ptr());
+            set.assume_init()
+        })
+    }
+
+    pub fn set(&mut self, fd: fd_t) {
+        unsafe {
+            libc::FD_SET(fd, &mut self.0);
+        };
+    }
+}
+
+//------------------------------------------------------------------------------
+
 pub fn close(fd: fd_t) -> io::Result<()> {
     let res = unsafe { libc::close(fd) };
     match res {
