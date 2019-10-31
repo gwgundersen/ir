@@ -39,7 +39,7 @@ pub mod spec {
     #[serde(rename_all = "lowercase")]
     pub enum CaptureMode {
         TempFile,
-        // Memory,
+        Memory,
     }
 
     impl Default for CaptureMode {
@@ -111,6 +111,7 @@ pub mod spec {
 //------------------------------------------------------------------------------
 
 use crate::res::FdRes;
+use crate::sel;
 use crate::sys;
 use crate::sys::fd_t;
 use std::io;
@@ -367,6 +368,49 @@ impl Fd for TempFileCapture {
         eprintln!("read {} bytes from temp file", size);
 
         Ok(Some(FdRes::Capture { text }))
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct MemoryCapture {
+    /// Proc-visible fd.
+    fd: fd_t,
+
+    /// Read end of the pipe.
+    read_fd: fd_t,
+
+    /// Write end of the pipe.
+    write_fd: fd_t,
+
+    reader: sel::Reader,
+}
+
+impl MemoryCapture {
+    fn new(fd: fd_t) -> MemoryCapture {
+        MemoryCapture {
+            fd: fd,
+            read_fd: -1,
+            write_fd: -1,
+            reader: sel::Reader::Capture { buf: Vec::new() }
+        }
+    }
+}
+
+impl Fd for MemoryCapture {
+    fn get_fd(&self) -> fd_t {
+        self.fd
+    }
+
+    fn set_up_in_parent(&mut self) -> io::Result<()> {
+        let (read_fd, write_fd) = sys::pipe()?;
+        self.read_fd = read_fd;
+        self.write_fd = write_fd;
+        Ok(())
+    }
+
+    fn set_up_in_child(&mut self) -> io::Result<()> {
+        Ok(())
     }
 }
 

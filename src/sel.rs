@@ -1,10 +1,11 @@
+use crate::sys;
 use crate::sys::{FdSet, fd_t};
 use std::vec::Vec;
 
 //------------------------------------------------------------------------------
 
 // In C++, I would provide different selectables with dynamic dispatch.  Here,
-// we're not writign a library, and the number of select behaviors will be
+// we're not writing a library, and the number of select behaviors will be
 // small, so let's see how it works to use an enum instead.
 
 #[derive(Debug)]
@@ -13,7 +14,14 @@ pub enum Reader {
 }
 
 impl Reader {
-    fn ready(&mut self) {
+    fn ready(&mut self, fd: fd_t) {
+        let SIZE = 8;
+
+        match self { 
+            Reader::Capture { buf } => {
+                sys::read(fd, buf, SIZE);
+            }
+        }
     }
 }
 

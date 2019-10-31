@@ -1,6 +1,6 @@
 extern crate libc;
 
-use libc::{c_int, pid_t, rusage};
+use libc::{c_int, pid_t, rusage, size_t, ssize_t};
 use std::ffi::CString;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -162,6 +162,25 @@ pub fn open(path: &Path, oflag: c_int, mode: c_int) -> io::Result<fd_t> {
         -1 => Err(io::Error::last_os_error()),
         _ if fd >= 0 => Ok(fd),
         _ => panic!("open returned {}", fd)
+    }
+}
+
+pub fn pipe() -> io::Result<(fd_t, fd_t)> {
+    unsafe {
+        let mut fildes: [MaybeUninit<fd_t>; 2] = MaybeUninit::uninit();
+        libc::pipe(&mut fildes.as_mut_ptr() as *mut fd_t);
+        Ok((fildes[0].assume_init(), fildes[1].assume_init()))
+    }
+}
+
+pub fn read(fd: fd_t, buf: &mut Vec<u8>, nbyte: size_t) -> ssize_t {
+    let pos = buf.len();
+    buf.reserve(pos + nbyte);
+    let ptr = &mut buf[pos] as *mut u8;
+    unsafe {
+        let read = libc::read(fd, ptr as *mut libc::c_void, nbyte);
+        buf.set_len(pos + read as usize);
+        read
     }
 }
 
