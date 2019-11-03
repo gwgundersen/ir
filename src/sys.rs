@@ -185,8 +185,8 @@ pub fn pipe() -> io::Result<(fd_t, fd_t)> {
 pub fn read(fd: fd_t, buf: &mut Vec<u8>, nbyte: size_t) -> io::Result<ssize_t> {
     let pos = buf.len();
     buf.reserve(pos + nbyte);
-    let ptr = &mut buf[pos] as *mut u8;
     match unsafe {
+        let ptr = buf.as_mut_ptr().offset(pos as isize);
         let read = libc::read(fd, ptr as *mut libc::c_void, nbyte);
         buf.set_len(pos + read as usize);
         read
@@ -201,7 +201,7 @@ pub fn select(
     readfds: &mut FdSet, writefds: &mut FdSet, errorfds: &mut FdSet, 
     timeout: Option<f64>) -> io::Result<c_int>
 {
-    let nfds = std::cmp::max(readfds.1, std::cmp::max(writefds.1, errorfds.1));
+    let nfds = std::cmp::max(readfds.1, std::cmp::max(writefds.1, errorfds.1)) + 1;
 
     // Linux updates timeval with remaining time, while most others don't
     // modify it.  We ignore the resulting value.
@@ -217,7 +217,7 @@ pub fn select(
         None => std::ptr::null_mut(),
     };
 
-    eprintln!("about to select({})", nfds);
+    eprintln!("about to select({}, {:?})", nfds, tvp);
     assert!(readfds.is_set(3));
     match unsafe {
         let res = libc::select(

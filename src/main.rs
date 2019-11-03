@@ -74,6 +74,9 @@ fn main() {
     }
     else {
         // Parent process.
+
+        // FIXME: Need to drain all fds before stopping the select loop.
+
         let (wait_pid, status, rusage) = loop {
             // Might have been interrupted by SIGCHLD.
             eprintln!("checking wait4");
@@ -83,7 +86,8 @@ fn main() {
                 Err(err) => panic!("wait4 failed: {}", err),
             };
             eprintln!("selecting");
-            match selecter.select(None) {
+            // FIXME: No!  Don't poll!  Might have to handle SIGCHLD.
+            match selecter.select(Some(1.)) {
                 Ok(_) => {
                     // select did something.  Great; keep going.
                     eprintln!("select OK");

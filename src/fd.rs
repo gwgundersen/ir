@@ -422,7 +422,7 @@ impl Fd for MemoryCapture {
 
     /// Called in parent process after wait().
     fn clean_up_in_parent(&mut self, selecter: &mut Selecter) -> io::Result<(Option<FdRes>)> {
-        match selecter.remove_reader(self.fd) {
+        match selecter.remove_reader(self.read_fd) {
             Reader::Capture { mut buf } => {
                 let mut buffer = Vec::new();
                 std::mem::swap(&mut buffer, &mut buf);

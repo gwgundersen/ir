@@ -21,7 +21,11 @@ impl Reader {
 
         match self { 
             Reader::Capture { buf } => {
-                sys::read(fd, buf, size).expect("read from df");
+                let nread = sys::read(fd, buf, size).expect("read from df");
+
+                // FIXME: If EOF (nread == 0), stop checking me.
+
+                eprintln!("read: {} bytes", nread);
             }
         }
     }
@@ -42,10 +46,12 @@ impl Selecter {
     }
 
     pub fn insert_reader(&mut self, fd: fd_t, reader: Reader) {
+        eprintln!("insert_reader({})", fd);
         self.readers.insert(fd, reader);
     }
 
     pub fn remove_reader(&mut self, fd: fd_t) -> Reader {
+        eprintln!("remove_reader({})", fd);
         self.readers.remove(&fd).unwrap()
     }
 
