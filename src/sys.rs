@@ -211,7 +211,7 @@ pub fn select(
         Some(t) => {
             let tv_sec = t as libc::c_long;
             let tv_usec = ((t * 1e6) as i64 % 1000000) as libc::c_int;
-            tv = libc::timeval { tv_sec, tv_usec };
+            tv = libc::timeval { tv_sec, tv_usec: tv_usec.into() };
             &mut tv
         },
         None => std::ptr::null_mut(),
