@@ -1,0 +1,8 @@
+{
+  "argv": [
+    "/bin/echo", "Hello, world!"
+  ],
+  "fds": [
+    ["stdout", {"capture": {"mode": "memory"}}]
+  ]
+}

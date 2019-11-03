@@ -59,7 +59,7 @@ where T: IntoIterator<Item = String>
 
 //------------------------------------------------------------------------------
 
-pub struct FdSet(libc::fd_set);
+pub struct FdSet(libc::fd_set, fd_t);
 
 impl FdSet {
     pub fn new() -> FdSet {
@@ -67,13 +67,18 @@ impl FdSet {
         FdSet(unsafe {
             libc::FD_ZERO(set.as_mut_ptr());
             set.assume_init()
-        })
+        }, -1)
     }
 
     pub fn set(&mut self, fd: fd_t) {
         unsafe {
             libc::FD_SET(fd, &mut self.0);
         };
+        self.1 = std::cmp::max(self.1, fd);
+    }
+
+    pub fn is_set(&mut self, fd: fd_t) -> bool {
+        unsafe { libc::FD_ISSET(fd, &mut self.0) }
     }
 }
 
@@ -165,34 +170,77 @@ pub fn open(path: &Path, oflag: c_int, mode: c_int) -> io::Result<fd_t> {
     }
 }
 
+/// Creates an anonymous pipe.
+///
+/// Returns the read and write file descriptors of the ends of the pipe.
 pub fn pipe() -> io::Result<(fd_t, fd_t)> {
-    unsafe {
-        let mut fildes: [MaybeUninit<fd_t>; 2] = MaybeUninit::uninit();
-        libc::pipe(&mut fildes.as_mut_ptr() as *mut fd_t);
-        Ok((fildes[0].assume_init(), fildes[1].assume_init()))
+    let mut fildes: Vec<fd_t> = vec![-1, 2];
+    match unsafe { libc::pipe(fildes.as_mut_ptr()) } {
+        -1 => Err(io::Error::last_os_error()),
+        0 => Ok((fildes[0], fildes[1])),
+        ret => panic!("pipe returned {}", ret),
     }
 }
 
-pub fn read(fd: fd_t, buf: &mut Vec<u8>, nbyte: size_t) -> ssize_t {
+pub fn read(fd: fd_t, buf: &mut Vec<u8>, nbyte: size_t) -> io::Result<ssize_t> {
     let pos = buf.len();
     buf.reserve(pos + nbyte);
     let ptr = &mut buf[pos] as *mut u8;
-    unsafe {
+    match unsafe {
         let read = libc::read(fd, ptr as *mut libc::c_void, nbyte);
         buf.set_len(pos + read as usize);
         read
+    } {
+        -1 => Err(io::Error::last_os_error()),
+        nread if nread >= 0 => Ok(nread),
+        ret => panic!("read returned {}", ret),
     }
 }
 
-pub fn wait4(pid: pid_t, options: c_int) -> io::Result<(pid_t, c_int, rusage)> {
+pub fn select(
+    readfds: &mut FdSet, writefds: &mut FdSet, errorfds: &mut FdSet, 
+    timeout: Option<f64>) -> io::Result<c_int>
+{
+    let nfds = std::cmp::max(readfds.1, std::cmp::max(writefds.1, errorfds.1));
+
+    // Linux updates timeval with remaining time, while most others don't
+    // modify it.  We ignore the resulting value.
+    #[allow(unused_assignments)]
+    let mut tv = libc::timeval { tv_sec: 0, tv_usec: 0 };
+    let tvp: *mut libc::timeval = match timeout {
+        Some(t) => {
+            let tv_sec = t as libc::c_long;
+            let tv_usec = ((t * 1e6) as i64 % 1000000) as libc::c_int;
+            tv = libc::timeval { tv_sec, tv_usec };
+            &mut tv
+        },
+        None => std::ptr::null_mut(),
+    };
+
+    eprintln!("about to select({})", nfds);
+    assert!(readfds.is_set(3));
+    match unsafe {
+        let res = libc::select(
+            nfds, &mut readfds.0, &mut writefds.0, &mut errorfds.0, tvp);
+        eprintln!("select() done: {}", res);
+        res
+    } {
+        -1 => Err(io::Error::last_os_error()),
+        nfd if nfd >= 0 => Ok(nfd),
+        ret => panic!("select returned {}", ret),
+    }
+}
+
+pub fn wait4(pid: pid_t, block: bool) -> io::Result<Option<(pid_t, c_int, rusage)>> {
     let mut status: c_int = 0;
     let mut usage = MaybeUninit::<rusage>::uninit();
-    let res = unsafe { 
+    let options = if block { 0 } else { libc::WNOHANG };
+    match unsafe { 
         libc::wait4(pid, &mut status, options, usage.as_mut_ptr())
-    };
-    match res {
+    } {
         -1 => Err(io::Error::last_os_error()),
-        child_pid => Ok((child_pid, status, unsafe { usage.assume_init() })),
+        0 => Ok(None),
+        child_pid => Ok(Some((child_pid, status, unsafe { usage.assume_init() }))),
     }
 }
 

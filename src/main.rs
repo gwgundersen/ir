@@ -27,6 +27,7 @@ fn main() {
     let env = environ::build(std::env::vars(), &spec.env);
 
     // Build fd managers.
+    let mut selecter = sel::Selecter::new();
     let mut fds = spec.fds.iter().map(|(fd_str, fd_spec)| {
         // FIXME: Parse when deserializing, rather than here.
         let fd = parse_fd(fd_str).unwrap_or_else(|err| {
@@ -37,7 +38,7 @@ fn main() {
     }).collect::<Vec<_>>();
 
     for fd in &mut fds {
-        (*fd).set_up_in_parent().unwrap_or_else(|err| {
+        (*fd).set_up_in_parent(&mut selecter).unwrap_or_else(|err| {
             eprintln!("failed to set up fd {}: {}", fd.get_fd(), err);
             std::process::exit(exitcode::OSERR);
         });
@@ -73,14 +74,36 @@ fn main() {
     }
     else {
         // Parent process.
-        let (wait_pid, status, rusage) = sys::wait4(child_pid, 0).ok().unwrap();
+        let (wait_pid, status, rusage) = loop {
+            // Might have been interrupted by SIGCHLD.
+            eprintln!("checking wait4");
+            match sys::wait4(child_pid, false) {
+                Ok(Some(r)) => { break r; },
+                Ok(None) => {},
+                Err(err) => panic!("wait4 failed: {}", err),
+            };
+            eprintln!("selecting");
+            match selecter.select(None) {
+                Ok(_) => {
+                    // select did something.  Great; keep going.
+                    eprintln!("select OK");
+                },
+                Err(err) => 
+                    if err.kind() == std::io::ErrorKind::Interrupted {
+                        // select interrupted, possibly by SIGCHLD. 
+                        eprintln!("select interrupted");
+                    } else {
+                        panic!("selected failed: {}", err)
+                    },
+            };
+        };
         assert_eq!(wait_pid, child_pid);  // FIXME: Errors.
 
         let mut result = res::Res::new();
         let mut proc_res = res::ProcRes::new(child_pid, status, rusage);
 
         for fd in &mut fds {
-            let res = (*fd).clean_up_in_parent().unwrap_or_else(|err| {
+            let res = (*fd).clean_up_in_parent(&mut selecter).unwrap_or_else(|err| {
                 result.errors.push(
                     format!("failed to clean up fd {}: {}", fd.get_fd(), err)
                 );

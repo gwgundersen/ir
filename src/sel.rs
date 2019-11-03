@@ -1,5 +1,7 @@
 use crate::sys;
 use crate::sys::{FdSet, fd_t};
+use std::collections::BTreeMap;
+use std::io;
 use std::vec::Vec;
 
 //------------------------------------------------------------------------------
@@ -15,11 +17,11 @@ pub enum Reader {
 
 impl Reader {
     fn ready(&mut self, fd: fd_t) {
-        let SIZE = 8;
+        let size = 8;
 
         match self { 
             Reader::Capture { buf } => {
-                sys::read(fd, buf, SIZE);
+                sys::read(fd, buf, size).expect("read from df");
             }
         }
     }
@@ -29,7 +31,7 @@ impl Reader {
 
 #[derive(Debug, Default)]
 pub struct Selecter {
-    readers: Vec<(fd_t, Reader)>,
+    readers: BTreeMap<fd_t, Reader>,
 }
 
 impl Selecter {
@@ -39,15 +41,34 @@ impl Selecter {
         }
     }
 
-    pub fn add_read(&mut self, fd: fd_t, reader: Reader) {
-        self.readers.push((fd, reader));
+    pub fn insert_reader(&mut self, fd: fd_t, reader: Reader) {
+        self.readers.insert(fd, reader);
     }
 
-    pub fn select(&self, timeout: f64) {
+    pub fn remove_reader(&mut self, fd: fd_t) -> Reader {
+        self.readers.remove(&fd).unwrap()
+    }
+
+    pub fn select(&mut self, timeout: Option<f64>) -> io::Result<()> {
+        // FIXME: Don't rebuild fd sets every time.
         let mut read_fds = FdSet::new();
         for (fd, _) in self.readers.iter() {
+            eprintln!("select read fd: {}", fd);
             read_fds.set(*fd);
         }
+        let mut write_fds = FdSet::new();
+        let mut error_fds = FdSet::new();
+        sys::select(&mut read_fds, &mut write_fds, &mut error_fds, timeout)?;
+
+        for (fd, reader) in self.readers.iter_mut() {
+            eprintln!("checking read ready: {}", fd);
+            if read_fds.is_set(*fd) {
+                eprintln!("fd is read ready: {}", fd);
+                reader.ready(*fd);
+            }
+        }
+
+        Ok(())
     }
 }
 

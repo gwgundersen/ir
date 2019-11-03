@@ -111,7 +111,7 @@ pub mod spec {
 //------------------------------------------------------------------------------
 
 use crate::res::FdRes;
-use crate::sel;
+use crate::sel::{Reader, Selecter};
 use crate::sys;
 use crate::sys::fd_t;
 use std::io;
@@ -122,6 +122,8 @@ use std::path::PathBuf;
 use libc;
 
 //------------------------------------------------------------------------------
+
+// FIXME: Hoist this into a top-level union-of-all Error type?
 
 #[derive(Debug)]
 pub enum Error {
@@ -204,7 +206,7 @@ pub trait Fd {
     fn get_fd(&self) -> fd_t;
 
     /// Called before fork().
-    fn set_up_in_parent(&mut self) -> io::Result<()> {
+    fn set_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<()> {
         Ok(())
     }
 
@@ -214,7 +216,7 @@ pub trait Fd {
     }
 
     /// Called in parent process after wait().
-    fn clean_up_in_parent(&mut self) -> io::Result<(Option<FdRes>)> {
+    fn clean_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<(Option<FdRes>)> {
         Ok(None)
     }
 
@@ -288,7 +290,7 @@ impl Fd for File {
         Ok(())
     }
 
-    fn clean_up_in_parent(&mut self) -> io::Result<(Option<FdRes>)> {
+    fn clean_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<(Option<FdRes>)> {
         Ok(Some(FdRes::File { path: self.path.clone() }))
     }
 }
@@ -337,7 +339,7 @@ impl TempFileCapture {
 impl Fd for TempFileCapture {
     fn get_fd(&self) -> fd_t { self.fd }
 
-    fn set_up_in_parent(&mut self) -> io::Result<()> {
+    fn set_up_in_parent(&mut self, _selecter: &mut Selecter) -> io::Result<()> {
         let (tmp_path, tmp_fd) = sys::mkstemp(TMP_TEMPLATE)?;
         eprintln!("capturing {} to {} (unlinked)", self.fd, tmp_path.to_str().unwrap());
         std::fs::remove_file(tmp_path)?;
@@ -353,7 +355,7 @@ impl Fd for TempFileCapture {
         Ok(())
     }
 
-    fn clean_up_in_parent(&mut self) -> io::Result<(Option<FdRes>)> {
+    fn clean_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<(Option<FdRes>)> {
         let mut file = unsafe {
             let file = std::fs::File::from_raw_fd(self.tmp_fd);
             self.tmp_fd = -1;
@@ -382,8 +384,6 @@ pub struct MemoryCapture {
 
     /// Write end of the pipe.
     write_fd: fd_t,
-
-    reader: sel::Reader,
 }
 
 impl MemoryCapture {
@@ -391,8 +391,7 @@ impl MemoryCapture {
         MemoryCapture {
             fd: fd,
             read_fd: -1,
-            write_fd: -1,
-            reader: sel::Reader::Capture { buf: Vec::new() }
+            write_fd: -1
         }
     }
 }
@@ -402,15 +401,35 @@ impl Fd for MemoryCapture {
         self.fd
     }
 
-    fn set_up_in_parent(&mut self) -> io::Result<()> {
+    fn set_up_in_parent(&mut self, selecter: &mut Selecter) -> io::Result<()> {
         let (read_fd, write_fd) = sys::pipe()?;
         self.read_fd = read_fd;
         self.write_fd = write_fd;
+        eprintln!("pipe: read {}, write {}", read_fd, write_fd);
+        selecter.insert_reader(
+            self.read_fd, 
+            Reader::Capture { buf: Vec::new() },
+        );
         Ok(())
     }
 
     fn set_up_in_child(&mut self) -> io::Result<()> {
+        sys::close(self.read_fd)?;
+        eprintln!("dup2 {} onto {}", self.write_fd, self.fd);
+        sys::dup2(self.write_fd, self.fd)?;
         Ok(())
+    }
+
+    /// Called in parent process after wait().
+    fn clean_up_in_parent(&mut self, selecter: &mut Selecter) -> io::Result<(Option<FdRes>)> {
+        match selecter.remove_reader(self.fd) {
+            Reader::Capture { mut buf } => {
+                let mut buffer = Vec::new();
+                std::mem::swap(&mut buffer, &mut buf);
+                let text = String::from_utf8(buffer).unwrap();  // FIXME
+                Ok(Some(FdRes::Capture { text }))
+            },
+        }
     }
 }
 
@@ -432,7 +451,9 @@ pub fn create_fd(fd: fd_t, fd_spec: &spec::Fd) -> Result<Box<dyn Fd>> {
             => match mode {
                 spec::CaptureMode::TempFile
                     => Box::new(TempFileCapture::new(fd)),
-            }
+                spec::CaptureMode::Memory
+                    => Box::new(MemoryCapture::new(fd)),
+            },
     })
 }
 
