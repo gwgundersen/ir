@@ -1,8 +1,9 @@
 {
   "argv": [
-    "/bin/echo", "Hello, world!"
+    "work/test-write.py"
   ],
   "fds": [
-    ["stdout", {"capture": {"mode": "memory"}}]
+    ["stdout", {"capture": {"mode": "memory"}}],
+    ["stderr", {"capture": {"mode": "memory"}}]
   ]
 }
