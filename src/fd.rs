@@ -206,6 +206,11 @@ pub trait Fd {
     fn get_fd(&self) -> fd_t;
 
     /// Called before fork().
+    fn set_up(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+
+    /// Called after fork(), in parent process.
     fn set_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<()> {
         Ok(())
     }
@@ -339,7 +344,7 @@ impl TempFileCapture {
 impl Fd for TempFileCapture {
     fn get_fd(&self) -> fd_t { self.fd }
 
-    fn set_up_in_parent(&mut self, _selecter: &mut Selecter) -> io::Result<()> {
+    fn set_up(&mut self) -> io::Result<()> {
         let (tmp_path, tmp_fd) = sys::mkstemp(TMP_TEMPLATE)?;
         eprintln!("capturing {} to {} (unlinked)", self.fd, tmp_path.to_str().unwrap());
         std::fs::remove_file(tmp_path)?;
@@ -401,15 +406,23 @@ impl Fd for MemoryCapture {
         self.fd
     }
 
-    fn set_up_in_parent(&mut self, selecter: &mut Selecter) -> io::Result<()> {
+    fn set_up(&mut self) -> io::Result<()> {
         let (read_fd, write_fd) = sys::pipe()?;
         self.read_fd = read_fd;
         self.write_fd = write_fd;
-        eprintln!("pipe: read {}, write {}", read_fd, write_fd);
+        Ok(())
+    }
+
+    fn set_up_in_parent(&mut self, selecter: &mut Selecter) -> io::Result<()> {
+        // Close the write end of the pipe.  Only the child writes.
+        sys::close(self.write_fd)?;
+
+        // Set up to read from the pipe.
         selecter.insert_reader(
             self.read_fd, 
             Reader::Capture { buf: Vec::new() },
         );
+
         Ok(())
     }
 

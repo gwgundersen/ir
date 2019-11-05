@@ -1,6 +1,6 @@
 use crate::sys;
 use crate::sys::{FdSet, fd_t};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::io;
 use std::vec::Vec;
 
@@ -16,16 +16,14 @@ pub enum Reader {
 }
 
 impl Reader {
-    fn ready(&mut self, fd: fd_t) {
-        let size = 8;
+    fn ready(&mut self, fd: fd_t) -> bool {
+        let size = 1024;
 
         match self { 
             Reader::Capture { buf } => {
                 let nread = sys::read(fd, buf, size).expect("read from df");
-
-                // FIXME: If EOF (nread == 0), stop checking me.
-
                 eprintln!("read: {} bytes", nread);
+                nread > 0
             }
         }
     }
@@ -36,6 +34,7 @@ impl Reader {
 #[derive(Debug, Default)]
 pub struct Selecter {
     readers: BTreeMap<fd_t, Reader>,
+    read_fds: HashSet<fd_t>,
 }
 
 impl Selecter {
@@ -45,32 +44,41 @@ impl Selecter {
         }
     }
 
+    pub fn any(&self) -> bool {
+        self.read_fds.len() > 0
+    }
+
     pub fn insert_reader(&mut self, fd: fd_t, reader: Reader) {
-        eprintln!("insert_reader({})", fd);
         self.readers.insert(fd, reader);
+        self.read_fds.insert(fd);
     }
 
     pub fn remove_reader(&mut self, fd: fd_t) -> Reader {
-        eprintln!("remove_reader({})", fd);
+        self.read_fds.remove(&fd);
         self.readers.remove(&fd).unwrap()
     }
 
     pub fn select(&mut self, timeout: Option<f64>) -> io::Result<()> {
         // FIXME: Don't rebuild fd sets every time.
-        let mut read_fds = FdSet::new();
-        for (fd, _) in self.readers.iter() {
+        let mut read_set = FdSet::new();
+        for fd in self.read_fds.iter() {
             eprintln!("select read fd: {}", fd);
-            read_fds.set(*fd);
+            read_set.set(*fd);
         }
-        let mut write_fds = FdSet::new();
-        let mut error_fds = FdSet::new();
-        sys::select(&mut read_fds, &mut write_fds, &mut error_fds, timeout)?;
+        let mut write_set = FdSet::new();
+        let mut error_set = FdSet::new();
+        sys::select(&mut read_set, &mut write_set, &mut error_set, timeout)?;
 
         for (fd, reader) in self.readers.iter_mut() {
             eprintln!("checking read ready: {}", fd);
-            if read_fds.is_set(*fd) {
+            if read_set.is_set(*fd) {
                 eprintln!("fd is read ready: {}", fd);
-                reader.ready(*fd);
+                if ! reader.ready(*fd) {
+                    eprintln!("fd is done; removing: {}", fd);
+                    self.read_fds.remove(fd);
+                }
+            } else {
+                eprintln!("fd is not read ready: {}", fd);
             }
         }
 

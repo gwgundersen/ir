@@ -27,7 +27,6 @@ fn main() {
     let env = environ::build(std::env::vars(), &spec.env);
 
     // Build fd managers.
-    let mut selecter = sel::Selecter::new();
     let mut fds = spec.fds.iter().map(|(fd_str, fd_spec)| {
         // FIXME: Parse when deserializing, rather than here.
         let fd = parse_fd(fd_str).unwrap_or_else(|err| {
@@ -38,7 +37,7 @@ fn main() {
     }).collect::<Vec<_>>();
 
     for fd in &mut fds {
-        (*fd).set_up_in_parent(&mut selecter).unwrap_or_else(|err| {
+        (*fd).set_up().unwrap_or_else(|err| {
             eprintln!("failed to set up fd {}: {}", fd.get_fd(), err);
             std::process::exit(exitcode::OSERR);
         });
@@ -75,19 +74,21 @@ fn main() {
     else {
         // Parent process.
 
+        // Set up the selector, which will manage events while the child runs.
+        let mut selecter = sel::Selecter::new();
+        for fd in &mut fds {
+            (*fd).set_up_in_parent(&mut selecter).unwrap_or_else(|err| {
+                eprintln!("failed to set up fd {}: {}", fd.get_fd(), err);
+                std::process::exit(exitcode::OSERR);
+            });
+        }
+
         // FIXME: Need to drain all fds before stopping the select loop.
 
-        let (wait_pid, status, rusage) = loop {
-            // Might have been interrupted by SIGCHLD.
-            eprintln!("checking wait4");
-            match sys::wait4(child_pid, false) {
-                Ok(Some(r)) => { break r; },
-                Ok(None) => {},
-                Err(err) => panic!("wait4 failed: {}", err),
-            };
+        while selecter.any() {
             eprintln!("selecting");
             // FIXME: No!  Don't poll!  Might have to handle SIGCHLD.
-            match selecter.select(Some(1.)) {
+            match selecter.select(None) {
                 Ok(_) => {
                     // select did something.  Great; keep going.
                     eprintln!("select OK");
@@ -100,6 +101,14 @@ fn main() {
                         panic!("selected failed: {}", err)
                     },
             };
+        };
+
+        // Might have been interrupted by SIGCHLD.
+        eprintln!("wait4");
+        let (wait_pid, status, rusage) = match sys::wait4(child_pid, false) {
+            Ok(Some(r)) => r,
+            Ok(None) => panic!("wait4 empty result"),
+            Err(err) => panic!("wait4 failed: {}", err),
         };
         assert_eq!(wait_pid, child_pid);  // FIXME: Errors.
 

@@ -217,13 +217,9 @@ pub fn select(
         None => std::ptr::null_mut(),
     };
 
-    eprintln!("about to select({}, {:?})", nfds, tvp);
-    assert!(readfds.is_set(3));
     match unsafe {
-        let res = libc::select(
-            nfds, &mut readfds.0, &mut writefds.0, &mut errorfds.0, tvp);
-        eprintln!("select() done: {}", res);
-        res
+        libc::select(
+            nfds, &mut readfds.0, &mut writefds.0, &mut errorfds.0, tvp)
     } {
         -1 => Err(io::Error::last_os_error()),
         nfd if nfd >= 0 => Ok(nfd),
