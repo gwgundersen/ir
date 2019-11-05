@@ -22,7 +22,6 @@ impl Reader {
         match self { 
             Reader::Capture { buf } => {
                 let nread = sys::read(fd, buf, size).expect("read from df");
-                eprintln!("read: {} bytes", nread);
                 nread > 0
             }
         }
@@ -62,7 +61,6 @@ impl Selecter {
         // FIXME: Don't rebuild fd sets every time.
         let mut read_set = FdSet::new();
         for fd in self.read_fds.iter() {
-            eprintln!("select read fd: {}", fd);
             read_set.set(*fd);
         }
         let mut write_set = FdSet::new();
@@ -70,15 +68,8 @@ impl Selecter {
         sys::select(&mut read_set, &mut write_set, &mut error_set, timeout)?;
 
         for (fd, reader) in self.readers.iter_mut() {
-            eprintln!("checking read ready: {}", fd);
-            if read_set.is_set(*fd) {
-                eprintln!("fd is read ready: {}", fd);
-                if ! reader.ready(*fd) {
-                    eprintln!("fd is done; removing: {}", fd);
-                    self.read_fds.remove(fd);
-                }
-            } else {
-                eprintln!("fd is not read ready: {}", fd);
+            if read_set.is_set(*fd) && ! reader.ready(*fd) {
+                self.read_fds.remove(fd);
             }
         }
 

@@ -346,14 +346,12 @@ impl Fd for TempFileCapture {
 
     fn set_up(&mut self) -> io::Result<()> {
         let (tmp_path, tmp_fd) = sys::mkstemp(TMP_TEMPLATE)?;
-        eprintln!("capturing {} to {} (unlinked)", self.fd, tmp_path.to_str().unwrap());
         std::fs::remove_file(tmp_path)?;
         self.tmp_fd = tmp_fd;
         Ok(())
     }
 
     fn set_up_in_child(&mut self) -> io::Result<()> {
-        eprintln!("duping {} from tmp fd", self.fd);
         sys::dup2(self.tmp_fd, self.fd)?;
         sys::close(self.tmp_fd)?;
         self.tmp_fd = -1;
@@ -370,9 +368,8 @@ impl Fd for TempFileCapture {
         let mut reader = std::io::BufReader::new(file);
 
         let mut bytes: Vec<u8> = Vec::new();
-        let size = reader.read_to_end(&mut bytes)?;
+        let _size = reader.read_to_end(&mut bytes)?;
         let text = String::from_utf8_lossy(&bytes).into_owned();
-        eprintln!("read {} bytes from temp file", size);
 
         Ok(Some(FdRes::Capture { text }))
     }
@@ -428,7 +425,6 @@ impl Fd for MemoryCapture {
 
     fn set_up_in_child(&mut self) -> io::Result<()> {
         sys::close(self.read_fd)?;
-        eprintln!("dup2 {} onto {}", self.write_fd, self.fd);
         sys::dup2(self.write_fd, self.fd)?;
         Ok(())
     }

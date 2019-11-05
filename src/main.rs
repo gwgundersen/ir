@@ -86,17 +86,14 @@ fn main() {
         // FIXME: Need to drain all fds before stopping the select loop.
 
         while selecter.any() {
-            eprintln!("selecting");
             // FIXME: No!  Don't poll!  Might have to handle SIGCHLD.
             match selecter.select(None) {
                 Ok(_) => {
                     // select did something.  Great; keep going.
-                    eprintln!("select OK");
                 },
                 Err(err) => 
                     if err.kind() == std::io::ErrorKind::Interrupted {
                         // select interrupted, possibly by SIGCHLD. 
-                        eprintln!("select interrupted");
                     } else {
                         panic!("selected failed: {}", err)
                     },
@@ -104,7 +101,6 @@ fn main() {
         };
 
         // Might have been interrupted by SIGCHLD.
-        eprintln!("wait4");
         let (wait_pid, status, rusage) = match sys::wait4(child_pid, false) {
             Ok(Some(r)) => r,
             Ok(None) => panic!("wait4 empty result"),
@@ -129,7 +125,6 @@ fn main() {
 
         result.procs.push(proc_res);
 
-        eprintln!("");
         res::print(&result);
         println!("");
     }
