@@ -83,20 +83,17 @@ fn main() {
             });
         }
 
-        // FIXME: Need to drain all fds before stopping the select loop.
-
         while selecter.any() {
-            // FIXME: No!  Don't poll!  Might have to handle SIGCHLD.
             match selecter.select(None) {
                 Ok(_) => {
-                    // select did something.  Great; keep going.
+                    // select did something.  Keep going.
                 },
-                Err(err) => 
-                    if err.kind() == std::io::ErrorKind::Interrupted {
-                        // select interrupted, possibly by SIGCHLD. 
-                    } else {
-                        panic!("selected failed: {}", err)
-                    },
+                Err(ref err) if err.kind() == std::io::ErrorKind::Interrupted => {
+                    // select interrupted, possibly by SIGCHLD.  Keep going.
+                },
+                Err(err) => {
+                    panic!("selected failed: {}", err)
+                },
             };
         };
 

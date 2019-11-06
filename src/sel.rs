@@ -32,7 +32,7 @@ impl Reader {
 
 #[derive(Debug, Default)]
 pub struct Selecter {
-    readers: BTreeMap<fd_t, Reader>,
+    readers: BTreeMap<fd_t, Reader>,  // FIXME: Vec<(fd_t, Reader)> ?
     read_fds: HashSet<fd_t>,
 }
 
@@ -58,7 +58,6 @@ impl Selecter {
     }
 
     pub fn select(&mut self, timeout: Option<f64>) -> io::Result<()> {
-        // FIXME: Don't rebuild fd sets every time.
         let mut read_set = FdSet::new();
         for fd in self.read_fds.iter() {
             read_set.set(*fd);
