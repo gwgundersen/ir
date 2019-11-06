@@ -17,6 +17,7 @@
 - [ ] umask
 - [ ] pdeath_sig
 - [ ] signal disposition
+- [ ] when running multiple procs, a way to connect their fds via pipes
 - [ ] transcript
 - [ ] transcript client lib (Python?)
 - [ ] handle signals and shut down cleanly
