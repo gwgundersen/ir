@@ -90,6 +90,10 @@ following aliases:
     are loaded into the result; the file descriptor is closed and the temporary
     file deleted.
     
+  - `"memory"`: Read from the file descriptor into a buffer in ir's own memory,
+    via a pipe.  This means ir's memory usage will grow as the process produces
+    more output.
+    
   `capture_format` specifies how to represent the captured data, and may be:
   
   - `"text"`: Treat the data as UTF-8-encded text, and include it in the results
