@@ -1,13 +1,13 @@
 - [ ] capture to bytes, encode base64 in JSON
 - [ ] error reporting model, for parent process
 - [ ] capture child proc setup errors and send back to parent
+- [ ] multiple procs in a single file, run in parallel
 - [ ] refactor specs into package
 - spec validation
   - [ ] no fd is given more than once
 - [ ] 'stdin', 'stdout', 'stderr' aliases to fds, consistently
 - [ ] feed input into fd
 - [ ] fd to named temporary file, with path in result
-- [ ] multiple procs in a single file, run in parallel
 - [ ] results to file
 - [ ] periodic update of results file while running
 - [ ] rusage for self vs children
