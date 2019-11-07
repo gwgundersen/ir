@@ -3,7 +3,7 @@
     "work/test-write.py"
   ],
   "fds": [
-    ["stdout", {"capture": {"mode": "memory"}}],
+    ["stdout", {"capture": {"mode": "memory", "format": "base64"}}],
     ["stderr", {"capture": {"mode": "memory"}}]
   ]
 }

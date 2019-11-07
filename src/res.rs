@@ -1,5 +1,6 @@
 /// Named "Res" to avoid confusion with the `Result` types.
 
+use crate::fd::spec::CaptureFormat;
 use libc::{c_int, pid_t, rusage};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -87,9 +88,31 @@ pub enum FdRes {
         path: PathBuf,
     },
 
-    Capture {
+    CaptureUtf8 {
         text: String,
     },
+
+    CaptureBase64 {
+        data: String,
+        encoding: String,
+    },
+}
+
+impl FdRes {
+    pub fn from_bytes(format: CaptureFormat, buffer: Vec<u8>) -> FdRes {
+        match format {
+            CaptureFormat::Text => {
+                // FIXME: Handle errors.
+                let text = String::from_utf8(buffer).unwrap();
+                FdRes::CaptureUtf8 { text }
+            },
+            CaptureFormat::Base64 => {
+                // FIXME: Handle errors.
+                let data = base64::encode_config(&buffer, base64::STANDARD_NO_PAD);
+                FdRes::CaptureBase64 { data, encoding: "base64".to_string() }
+            },
+        }
+    }
 }
 
 //------------------------------------------------------------------------------

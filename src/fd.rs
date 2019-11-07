@@ -46,12 +46,12 @@ pub mod spec {
         fn default() -> Self { Self::TempFile }
     }
 
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
     #[serde(deny_unknown_fields)]
     #[serde(rename_all = "lowercase")]
     pub enum CaptureFormat {
         Text,
-        // FIXME: Raw... base64?
+        Base64,
     }
 
     impl Default for CaptureFormat {
@@ -330,14 +330,15 @@ impl Fd for Dup {
 struct TempFileCapture {
     fd: fd_t,
     tmp_fd: fd_t,
+    format: spec::CaptureFormat,
 }
 
 // FIXME: Template.
 const TMP_TEMPLATE: &str = "/tmp/ir-capture-XXXXXXXXXXXX";
 
 impl TempFileCapture {
-    fn new(fd: fd_t) -> TempFileCapture {
-        TempFileCapture { fd, tmp_fd: -1 }
+    fn new(fd: fd_t, format: spec::CaptureFormat) -> TempFileCapture {
+        TempFileCapture { fd, tmp_fd: -1, format }
     }
 }
 
@@ -369,9 +370,8 @@ impl Fd for TempFileCapture {
 
         let mut bytes: Vec<u8> = Vec::new();
         let _size = reader.read_to_end(&mut bytes)?;
-        let text = String::from_utf8_lossy(&bytes).into_owned();
 
-        Ok(Some(FdRes::Capture { text }))
+        Ok(Some(FdRes::from_bytes(self.format, bytes)))
     }
 }
 
@@ -386,14 +386,18 @@ pub struct MemoryCapture {
 
     /// Write end of the pipe.
     write_fd: fd_t,
+
+    /// Format for output.
+    format: spec::CaptureFormat,
 }
 
 impl MemoryCapture {
-    fn new(fd: fd_t) -> MemoryCapture {
+    fn new(fd: fd_t, format: spec::CaptureFormat) -> MemoryCapture {
         MemoryCapture {
-            fd: fd,
+            fd,
             read_fd: -1,
-            write_fd: -1
+            write_fd: -1,
+            format,
         }
     }
 }
@@ -435,8 +439,7 @@ impl Fd for MemoryCapture {
             Reader::Capture { mut buf } => {
                 let mut buffer = Vec::new();
                 std::mem::swap(&mut buffer, &mut buf);
-                let text = String::from_utf8(buffer).unwrap();  // FIXME
-                Ok(Some(FdRes::Capture { text }))
+                Ok(Some(FdRes::from_bytes(self.format, buffer)))
             },
         }
     }
@@ -456,12 +459,12 @@ pub fn create_fd(fd: fd_t, fd_spec: &spec::Fd) -> Result<Box<dyn Fd>> {
             => Box::new(File::new(fd, path.to_path_buf(), *flags, *mode)),
         spec::Fd::Dup { fd: other_fd }
             => Box::new(Dup::new(fd, *other_fd)),
-        spec::Fd::Capture { mode, format: _format }
+        spec::Fd::Capture { mode, format }
             => match mode {
                 spec::CaptureMode::TempFile
-                    => Box::new(TempFileCapture::new(fd)),
+                    => Box::new(TempFileCapture::new(fd, *format)),
                 spec::CaptureMode::Memory
-                    => Box::new(MemoryCapture::new(fd)),
+                    => Box::new(MemoryCapture::new(fd, *format)),
             },
     })
 }
