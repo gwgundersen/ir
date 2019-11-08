@@ -110,6 +110,7 @@ pub mod spec {
 
 //------------------------------------------------------------------------------
 
+use crate::err::Result;
 use crate::res::FdRes;
 use crate::sel::{Reader, Selecter};
 use crate::sys;
@@ -120,48 +121,6 @@ use std::io::Seek;
 use std::os::unix::io::FromRawFd;
 use std::path::PathBuf;
 use libc;
-
-//------------------------------------------------------------------------------
-
-// FIXME: Hoist this into a top-level union-of-all Error type?
-
-#[derive(Debug)]
-pub enum Error {
-    Io(std::io::Error),
-    ParseInt(std::num::ParseIntError),
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match *self {
-            Error::Io(ref err) => err.fmt(f),
-            Error::ParseInt(ref err) => err.fmt(f),
-        }
-    }
-}
-
-impl std::error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::Io(ref err) => err.description(),
-            Error::ParseInt(ref err) => err.description(),
-        }
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(err: std::io::Error) -> Error {
-        Error::Io(err)
-    }
-}
-
-impl From<std::num::ParseIntError> for Error {
-    fn from(err: std::num::ParseIntError) -> Error {
-        Error::ParseInt(err)
-    }
-}
-
-type Result<T> = std::result::Result<T, Error>;
 
 //------------------------------------------------------------------------------
 

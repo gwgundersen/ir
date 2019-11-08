@@ -1,4 +1,3 @@
-- [ ] top level union error type
 - [ ] error reporting model, for parent process
 - [ ] capture child proc setup errors and send back to parent
 - [ ] multiple procs in a single file, run in parallel (identified how?)
@@ -66,4 +65,5 @@
 - [x] create fd::Error and fd::Result
 - [x] capture fd into results via pipe
 - [x] capture to bytes, encode base64 in JSON
+- [x] top level union error type
 
