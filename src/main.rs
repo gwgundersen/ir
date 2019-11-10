@@ -29,22 +29,27 @@ fn main() {
     // Build fd managers.
     let mut fds = spec.fds.iter().map(|(fd_str, fd_spec)| {
         // FIXME: Parse when deserializing, rather than here.
-        let fd = parse_fd(fd_str).unwrap_or_else(|err| {
+        let fd_num = parse_fd(fd_str).unwrap_or_else(|err| {
             eprintln!("failed to parse fd {}: {}", fd_str, err);
             std::process::exit(exitcode::OSERR);
         });
-        ir::fd::create_fd(fd, &fd_spec).unwrap()
-    }).collect::<Vec<_>>();
 
-    for fd in &mut fds {
-        (*fd).set_up().unwrap_or_else(|err| {
+        // FIXME: Errors.
+        let mut fd = ir::fd::create_fd(fd_num, &fd_spec).unwrap();
+
+        // FIXME: Errors.
+        fd.set_up().unwrap_or_else(|err| {
             eprintln!("failed to set up fd {}: {}", fd.get_fd(), err);
             std::process::exit(exitcode::OSERR);
         });
-    }
 
+        fd
+    }).collect::<Vec<_>>();
+
+    // Fork the child process.
     let child_pid = sys::fork().unwrap_or_else(|err| {
         eprintln!("failed to fork: {}", err);
+        // FIXME: Errors.
         std::process::exit(exitcode::OSERR);
     });
     if child_pid == 0 {
@@ -52,6 +57,7 @@ fn main() {
         // FIXME: Collect errors and send to parent.
 
         for fd in &mut fds {
+            // FIXME: Errors.
             (*fd).set_up_in_child().unwrap_or_else(|err| {
                 eprintln!("failed to set up fd {}: {}", fd.get_fd(), err);
                 std::process::exit(exitcode::OSERR);
@@ -59,9 +65,11 @@ fn main() {
         }
 
         let exe = &spec.argv[0];
+        // FIXME: Errors.
         let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();
 
         for fd in &mut fds {
+            // FIXME: Errors.
             (*fd).clean_up_in_child().unwrap_or_else(|err| {
                 eprintln!("failed to clean up fd {}: {}", fd.get_fd(), err);
                 std::process::exit(exitcode::OSERR);
@@ -77,6 +85,7 @@ fn main() {
         // Set up the selector, which will manage events while the child runs.
         let mut selecter = sel::Selecter::new();
         for fd in &mut fds {
+            // FIXME: Errors.
             (*fd).set_up_in_parent(&mut selecter).unwrap_or_else(|err| {
                 eprintln!("failed to set up fd {}: {}", fd.get_fd(), err);
                 std::process::exit(exitcode::OSERR);
@@ -98,6 +107,7 @@ fn main() {
         };
 
         // Might have been interrupted by SIGCHLD.
+        // FIXME: Errors.
         let (wait_pid, status, rusage) = match sys::wait4(child_pid, false) {
             Ok(Some(r)) => r,
             Ok(None) => panic!("wait4 empty result"),
