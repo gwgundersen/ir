@@ -119,15 +119,19 @@ fn main() {
         let mut proc_res = res::ProcRes::new(child_pid, status, rusage);
 
         for fd in &mut fds {
-            let res = (*fd).clean_up_in_parent(&mut selecter).unwrap_or_else(|err| {
-                result.errors.push(
-                    format!("failed to clean up fd {}: {}", fd.get_fd(), err)
-                );
-                None
-            });
-            if let Some(fd_result) = res {
-                proc_res.fds.insert(ir::fd::get_fd_name(fd.get_fd()), fd_result);
-            };
+            match (*fd).clean_up_in_parent(&mut selecter) {
+                Ok(Some(fd_result)) => {
+                    proc_res.fds.insert(ir::fd::get_fd_name(fd.get_fd()), fd_result);
+                }
+                Ok(None) => {
+                },
+                Err(err) => {
+                    result.errors.push(
+                        format!("failed to clean up fd {}: {}", fd.get_fd(), err)
+                    );
+                    proc_res.fds.insert(ir::fd::get_fd_name(fd.get_fd()), res::FdRes::None {});
+                },
+            }
         }
 
         result.procs.push(proc_res);
