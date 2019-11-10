@@ -1,3 +1,4 @@
+- [ ] integration tests for capture
 - [ ] error reporting model, for parent process
 - [ ] capture child proc setup errors and send back to parent
 - [ ] multiple procs in a single file, run in parallel (identified how?)
