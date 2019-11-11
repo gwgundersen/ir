@@ -106,13 +106,21 @@ impl FdRes {
         match format {
             CaptureFormat::Text => {
                 // FIXME: Handle errors.
-                let text = String::from_utf8(buffer).unwrap();
-                FdRes::CaptureUtf8 { text }
+                let text = String::from_utf8_lossy(&buffer).to_string();
+                FdRes::CaptureUtf8 {
+                    text
+                }
             },
             CaptureFormat::Base64 => {
                 // FIXME: Handle errors.
-                let data = base64::encode_config(&buffer, base64::STANDARD_NO_PAD);
-                FdRes::CaptureBase64 { data, encoding: "base64".to_string() }
+                let data = base64::encode_config(
+                    &buffer, 
+                    base64::STANDARD_NO_PAD
+                );
+                FdRes::CaptureBase64 {
+                    data,
+                    encoding: "base64".to_string()
+                }
             },
         }
     }
