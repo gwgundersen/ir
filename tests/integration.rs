@@ -16,8 +16,9 @@ fn echo_hello() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(lines.next().unwrap(), "Hello, world.");
 
     // Second line is JSON result.
-    let jso: serde_json::Value =
+    let res_jso: serde_json::Value =
         serde_json::from_str(lines.next().unwrap())?;
+    let jso = &res_jso["procs"][0];
     assert_eq!(jso["status"], 0);
     let utime = &jso["rusage"]["ru_utime"];
     let utime =
