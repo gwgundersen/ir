@@ -84,6 +84,9 @@ mod libc_serde {
 #[serde(rename_all="lowercase")]
 #[serde(untagged)]
 pub enum FdRes {
+    None {
+    },
+
     File {
         path: PathBuf,
     },

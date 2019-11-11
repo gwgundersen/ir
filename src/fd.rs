@@ -164,11 +164,6 @@ fn get_oflags(flags: &spec::OpenFlag, fd: fd_t) -> libc::c_int {
 pub trait Fd {
     fn get_fd(&self) -> fd_t;
 
-    /// Called before fork().
-    fn set_up(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-
     /// Called after fork(), in parent process.
     fn set_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<()> {
         Ok(())
@@ -180,6 +175,7 @@ pub trait Fd {
     }
 
     /// Called in parent process after wait().
+    // FIXME: Return something that becomes JSON null in result.
     fn clean_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<(Option<FdRes>)> {
         Ok(None)
     }
@@ -296,20 +292,15 @@ struct TempFileCapture {
 const TMP_TEMPLATE: &str = "/tmp/ir-capture-XXXXXXXXXXXX";
 
 impl TempFileCapture {
-    fn new(fd: fd_t, format: spec::CaptureFormat) -> TempFileCapture {
-        TempFileCapture { fd, tmp_fd: -1, format }
+    fn new(fd: fd_t, format: spec::CaptureFormat) -> Result<TempFileCapture> {
+        let (tmp_path, tmp_fd) = sys::mkstemp(TMP_TEMPLATE)?;
+        std::fs::remove_file(tmp_path)?;
+        Ok(TempFileCapture { fd, tmp_fd, format })
     }
 }
 
 impl Fd for TempFileCapture {
     fn get_fd(&self) -> fd_t { self.fd }
-
-    fn set_up(&mut self) -> io::Result<()> {
-        let (tmp_path, tmp_fd) = sys::mkstemp(TMP_TEMPLATE)?;
-        std::fs::remove_file(tmp_path)?;
-        self.tmp_fd = tmp_fd;
-        Ok(())
-    }
 
     fn set_up_in_child(&mut self) -> io::Result<()> {
         sys::dup2(self.tmp_fd, self.fd)?;
@@ -351,26 +342,20 @@ pub struct MemoryCapture {
 }
 
 impl MemoryCapture {
-    fn new(fd: fd_t, format: spec::CaptureFormat) -> MemoryCapture {
-        MemoryCapture {
+    fn new(fd: fd_t, format: spec::CaptureFormat) -> Result<MemoryCapture> {
+        let (read_fd, write_fd) = sys::pipe()?;
+        Ok(MemoryCapture {
             fd,
-            read_fd: -1,
-            write_fd: -1,
+            read_fd,
+            write_fd,
             format,
-        }
+        })
     }
 }
 
 impl Fd for MemoryCapture {
     fn get_fd(&self) -> fd_t {
         self.fd
-    }
-
-    fn set_up(&mut self) -> io::Result<()> {
-        let (read_fd, write_fd) = sys::pipe()?;
-        self.read_fd = read_fd;
-        self.write_fd = write_fd;
-        Ok(())
     }
 
     fn set_up_in_parent(&mut self, selecter: &mut Selecter) -> io::Result<()> {
@@ -421,9 +406,9 @@ pub fn create_fd(fd: fd_t, fd_spec: &spec::Fd) -> Result<Box<dyn Fd>> {
         spec::Fd::Capture { mode, format }
             => match mode {
                 spec::CaptureMode::TempFile
-                    => Box::new(TempFileCapture::new(fd, *format)),
+                    => Box::new(TempFileCapture::new(fd, *format)?),
                 spec::CaptureMode::Memory
-                    => Box::new(MemoryCapture::new(fd, *format)),
+                    => Box::new(MemoryCapture::new(fd, *format)?),
             },
     })
 }

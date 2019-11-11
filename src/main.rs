@@ -35,15 +35,7 @@ fn main() {
         });
 
         // FIXME: Errors.
-        let mut fd = ir::fd::create_fd(fd_num, &fd_spec).unwrap();
-
-        // FIXME: Errors.
-        fd.set_up().unwrap_or_else(|err| {
-            eprintln!("failed to set up fd {}: {}", fd.get_fd(), err);
-            std::process::exit(exitcode::OSERR);
-        });
-
-        fd
+        ir::fd::create_fd(fd_num, &fd_spec).unwrap()
     }).collect::<Vec<_>>();
 
     // Fork the child process.
