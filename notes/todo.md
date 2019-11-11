@@ -1,4 +1,4 @@
-- [ ] integration tests for capture
+- [ ] integration test for UTF8 sanitization
 - [ ] error reporting model, for parent process
 - [ ] capture child proc setup errors and send back to parent
 - [ ] multiple procs in a single file, run in parallel (identified how?)
@@ -67,4 +67,5 @@
 - [x] capture fd into results via pipe
 - [x] capture to bytes, encode base64 in JSON
 - [x] top level union error type
+- [x] integration tests for capture
 
