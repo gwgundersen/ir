@@ -23,6 +23,7 @@ def run(spec):
         assert res.returncode == 0, f"ir exited {res.returncode}"
     res = json.loads(res.stdout)
     json.dump(res, sys.stderr, indent=2)
-    return res
+    # Return results for the single process only.
+    return res["procs"][0]
 
 

@@ -108,7 +108,7 @@ fn main() {
 
         // Might have been interrupted by SIGCHLD.
         // FIXME: Errors.
-        let (wait_pid, status, rusage) = match sys::wait4(child_pid, false) {
+        let (wait_pid, status, rusage) = match sys::wait4(child_pid, true) {
             Ok(Some(r)) => r,
             Ok(None) => panic!("wait4 empty result"),
             Err(err) => panic!("wait4 failed: {}", err),
