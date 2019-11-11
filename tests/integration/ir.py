@@ -1,4 +1,5 @@
 import json
+import os
 from   pathlib import Path
 import subprocess
 import sys
@@ -17,6 +18,7 @@ def run(spec):
         res = subprocess.run(
             [str(IR_EXE), tmp_file.name],
             stdout=subprocess.PIPE,
+            env={**os.environ, "RUST_BACKTRACE": "1"},
         )
         assert res.returncode == 0, f"ir exited {res.returncode}"
     res = json.loads(res.stdout)
