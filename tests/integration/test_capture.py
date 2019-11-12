@@ -9,7 +9,7 @@ TEST_DIR = Path(__file__).parent
 @pytest.mark.parametrize("format", ["text", "base64"])
 def test_echo(mode, format):
     """
-    Basic test of capturing stdout.
+    Tests basic capture of stdout.
     """
     res = ir.run({
         "argv": ["/bin/echo", "Hello, world.", "How are you?"],
@@ -39,7 +39,7 @@ def test_echo(mode, format):
 @pytest.mark.parametrize("mode", ["tempfile", "memory"])
 def test_interleaved(mode):
     """
-    Test of interleaved stdout and stderr.
+    Tests interleaved stdout and stderr.
     """
     exe = TEST_DIR / "interleaved.py"
     assert exe.exists()
@@ -76,3 +76,26 @@ def test_interleaved(mode):
     assert err == b"".join( bytes([i]) * i for i in range(256) if i % 3 == 0 )
 
     
+@pytest.mark.parametrize("mode", ["tempfile", "memory"])
+def test_utf8_sanitize(mode):
+    """
+    Tests capturing invalid UTF-8 as text.
+    """
+    res = ir.run({
+        "argv": [
+            "/usr/bin/printf",
+            "abc\200\200def",
+        ],
+        "fds": [
+            ["stdout", {"capture": {"mode": mode}}],
+        ],
+    })
+
+    assert res["status"] == 0
+
+    out = res["fds"]["stdout"]["text"]
+    assert len(out) == 8
+    assert out[: 3] == "abc"
+    assert out[-3 :] == "def"
+
+
