@@ -1,13 +1,12 @@
 - [ ] refactor specs into package
-- [ ] capture fd into results via pipe
+- [ ] capture child proc setup errors and send back to parent
+- [ ] fd to named temporary file, with path in result
+- [ ] multiple procs in a single file, run in parallel
 - [ ] capture to bytes (but encode how? base64?)
 - spec validation
   - [ ] no fd is given more than once
 - [ ] 'stdin', 'stdout', 'stderr' aliases to fds, consistently
 - [ ] feed input into fd
-- [ ] capture child proc setup errors and send back to parent
-- [ ] fd to named temporary file, with path in result
-- [ ] multiple procs in a single file, run in parallel
 - [ ] results to file
 - [ ] periodic update of results file while running
 - [ ] rusage for self vs children
@@ -62,4 +61,5 @@
 - [x] add file to fd results
 - [x] rename Result -> Res
 - [x] create fd::Error and fd::Result
+- [x] capture fd into results via pipe
 
