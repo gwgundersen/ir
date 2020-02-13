@@ -66,6 +66,7 @@ fn main() {
         }
 
         let exe = &spec.argv[0];
+        // FIXME: Add more info: exec, and program name.
         let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();
 
         // exec failed; send the error to the parent process.
@@ -125,16 +126,14 @@ fn main() {
         };
         assert_eq!(wait_pid, child_pid);  // FIXME: Errors.
 
-        for err in (match selecter.remove_reader(err_read_fd) {
-            sel::Reader::Errors { errs } => errs,
-            _ => panic!("foo"),
-        }
-        ).iter() {
-            eprintln!("ERROR: {}", err);
-        }
-
         let mut result = res::Res::new();
         let mut proc_res = res::ProcRes::new(child_pid, status, rusage);
+
+        // Fetch errors from error pipe into results.
+        result.errors = match selecter.remove_reader(err_read_fd) {
+            sel::Reader::Errors { errs } => errs,
+            _ => panic!("foo"),
+        };
 
         for fd in &mut fds {
             match (*fd).clean_up_in_parent(&mut selecter) {
@@ -158,6 +157,7 @@ fn main() {
         println!("");
     }
 
+    // FIXME: Fail if errors.
     std::process::exit(exitcode::OK);
 }
 
