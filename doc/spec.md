@@ -90,6 +90,9 @@ following aliases:
     are loaded into the result; the file descriptor is closed and the temporary
     file deleted.
     
+  - `"memory"`: Connect the file to a pipe, and read from the pipe into a memory
+    buffer as the program runs.
+
   `capture_format` specifies how to represent the captured data, and may be:
   
   - `"text"`: Treat the data as UTF-8-encded text, and include it in the results
