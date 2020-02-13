@@ -85,17 +85,23 @@ following aliases:
     
   `capture_mode` may be: 
 
-  - `"tempfile"`: Open the file descriptor to an unlinked temporary file, which
-    receives the output.  When the process terminates, the contents of the file
-    are loaded into the result; the file descriptor is closed and the temporary
-    file deleted.
+  - `"tempfile"` (default): Open the file descriptor to an unlinked temporary
+    file, which receives the output.  When the process terminates, the contents
+    of the file are loaded into the result; the file descriptor is closed and
+    the temporary file deleted.
+    
+  - `"memory"`: Read from the file descriptor into a buffer in ir's own memory,
+    via a pipe.  This means ir's memory usage will grow as the process produces
+    more output.
     
   - `"memory"`: Connect the file to a pipe, and read from the pipe into a memory
     buffer as the program runs.
 
   `capture_format` specifies how to represent the captured data, and may be:
   
-  - `"text"`: Treat the data as UTF-8-encded text, and include it in the results
-    as a string.  If the data contains invalid UTF-8, it is sanitized to be valid
-    text.
+  - `"text"` (default): Treat the data as UTF-8-encded text, and include it in
+    the results as a string.  If the data contains invalid UTF-8, it is
+    sanitized to be valid text; this is a lossy operation.
     
+  - `"base64"`: Encode data as base64.
+

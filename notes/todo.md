@@ -1,12 +1,12 @@
-- [ ] refactor specs into package
+- [ ] error reporting model, for parent process
 - [ ] capture child proc setup errors and send back to parent
-- [ ] fd to named temporary file, with path in result
-- [ ] multiple procs in a single file, run in parallel
-- [ ] capture to bytes (but encode how? base64?)
+- [ ] multiple procs in a single file, run in parallel (identified how?)
+- [ ] refactor specs into package
 - spec validation
   - [ ] no fd is given more than once
 - [ ] 'stdin', 'stdout', 'stderr' aliases to fds, consistently
 - [ ] feed input into fd
+- [ ] fd to named temporary file, with path in result
 - [ ] results to file
 - [ ] periodic update of results file while running
 - [ ] rusage for self vs children
@@ -16,9 +16,11 @@
 - [ ] umask
 - [ ] pdeath_sig
 - [ ] signal disposition
+- [ ] when running multiple procs, a way to connect their fds via pipes
 - [ ] transcript
 - [ ] transcript client lib (Python?)
 - [ ] handle signals and shut down cleanly
+- [ ] forward signals to subprocess
 - [ ] don't wait; fire and forget (certain options only)
 - [ ] daemonize
 - [ ] report child pid to caller, somehow?
@@ -62,4 +64,8 @@
 - [x] rename Result -> Res
 - [x] create fd::Error and fd::Result
 - [x] capture fd into results via pipe
+- [x] capture to bytes, encode base64 in JSON
+- [x] top level union error type
+- [x] integration tests for capture
+- [x] integration test for UTF8 sanitization
 

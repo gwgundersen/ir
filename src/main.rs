@@ -29,22 +29,19 @@ fn main() {
     // Build fd managers.
     let mut fds = spec.fds.iter().map(|(fd_str, fd_spec)| {
         // FIXME: Parse when deserializing, rather than here.
-        let fd = parse_fd(fd_str).unwrap_or_else(|err| {
+        let fd_num = parse_fd(fd_str).unwrap_or_else(|err| {
             eprintln!("failed to parse fd {}: {}", fd_str, err);
             std::process::exit(exitcode::OSERR);
         });
-        ir::fd::create_fd(fd, &fd_spec).unwrap()
+
+        // FIXME: Errors.
+        ir::fd::create_fd(fd_num, &fd_spec).unwrap()
     }).collect::<Vec<_>>();
 
-    for fd in &mut fds {
-        (*fd).set_up().unwrap_or_else(|err| {
-            eprintln!("failed to set up fd {}: {}", fd.get_fd(), err);
-            std::process::exit(exitcode::OSERR);
-        });
-    }
-
+    // Fork the child process.
     let child_pid = sys::fork().unwrap_or_else(|err| {
         eprintln!("failed to fork: {}", err);
+        // FIXME: Errors.
         std::process::exit(exitcode::OSERR);
     });
     if child_pid == 0 {
@@ -52,6 +49,7 @@ fn main() {
         // FIXME: Collect errors and send to parent.
 
         for fd in &mut fds {
+            // FIXME: Errors.
             (*fd).set_up_in_child().unwrap_or_else(|err| {
                 eprintln!("failed to set up fd {}: {}", fd.get_fd(), err);
                 std::process::exit(exitcode::OSERR);
@@ -59,9 +57,11 @@ fn main() {
         }
 
         let exe = &spec.argv[0];
+        // FIXME: Errors.
         let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();
 
         for fd in &mut fds {
+            // FIXME: Errors.
             (*fd).clean_up_in_child().unwrap_or_else(|err| {
                 eprintln!("failed to clean up fd {}: {}", fd.get_fd(), err);
                 std::process::exit(exitcode::OSERR);
@@ -77,31 +77,30 @@ fn main() {
         // Set up the selector, which will manage events while the child runs.
         let mut selecter = sel::Selecter::new();
         for fd in &mut fds {
+            // FIXME: Errors.
             (*fd).set_up_in_parent(&mut selecter).unwrap_or_else(|err| {
                 eprintln!("failed to set up fd {}: {}", fd.get_fd(), err);
                 std::process::exit(exitcode::OSERR);
             });
         }
 
-        // FIXME: Need to drain all fds before stopping the select loop.
-
         while selecter.any() {
-            // FIXME: No!  Don't poll!  Might have to handle SIGCHLD.
             match selecter.select(None) {
                 Ok(_) => {
-                    // select did something.  Great; keep going.
+                    // select did something.  Keep going.
                 },
-                Err(err) => 
-                    if err.kind() == std::io::ErrorKind::Interrupted {
-                        // select interrupted, possibly by SIGCHLD. 
-                    } else {
-                        panic!("selected failed: {}", err)
-                    },
+                Err(ref err) if err.kind() == std::io::ErrorKind::Interrupted => {
+                    // select interrupted, possibly by SIGCHLD.  Keep going.
+                },
+                Err(err) => {
+                    panic!("selected failed: {}", err)
+                },
             };
         };
 
         // Might have been interrupted by SIGCHLD.
-        let (wait_pid, status, rusage) = match sys::wait4(child_pid, false) {
+        // FIXME: Errors.
+        let (wait_pid, status, rusage) = match sys::wait4(child_pid, true) {
             Ok(Some(r)) => r,
             Ok(None) => panic!("wait4 empty result"),
             Err(err) => panic!("wait4 failed: {}", err),
@@ -112,15 +111,19 @@ fn main() {
         let mut proc_res = res::ProcRes::new(child_pid, status, rusage);
 
         for fd in &mut fds {
-            let res = (*fd).clean_up_in_parent(&mut selecter).unwrap_or_else(|err| {
-                result.errors.push(
-                    format!("failed to clean up fd {}: {}", fd.get_fd(), err)
-                );
-                None
-            });
-            if let Some(fd_result) = res {
-                proc_res.fds.insert(ir::fd::get_fd_name(fd.get_fd()), fd_result);
-            };
+            match (*fd).clean_up_in_parent(&mut selecter) {
+                Ok(Some(fd_result)) => {
+                    proc_res.fds.insert(ir::fd::get_fd_name(fd.get_fd()), fd_result);
+                }
+                Ok(None) => {
+                },
+                Err(err) => {
+                    result.errors.push(
+                        format!("failed to clean up fd {}: {}", fd.get_fd(), err)
+                    );
+                    proc_res.fds.insert(ir::fd::get_fd_name(fd.get_fd()), res::FdRes::None {});
+                },
+            }
         }
 
         result.procs.push(proc_res);

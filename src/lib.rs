@@ -2,6 +2,7 @@
 #[macro_use] extern crate maplit;
 
 pub mod environ;
+pub mod err;
 pub mod fd;
 pub mod res;
 pub mod sel;
