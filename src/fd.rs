@@ -379,12 +379,14 @@ impl Fd for MemoryCapture {
 
     /// Called in parent process after wait().
     fn clean_up_in_parent(&mut self, selecter: &mut Selecter) -> io::Result<(Option<FdRes>)> {
+        // FIXME: We should consume readers instead of swapping out.
         match selecter.remove_reader(self.read_fd) {
             Reader::Capture { mut buf } => {
                 let mut buffer = Vec::new();
                 std::mem::swap(&mut buffer, &mut buf);
                 Ok(Some(FdRes::from_bytes(self.format, buffer)))
             },
+            _ => panic!("wrong reader"),
         }
     }
 }

@@ -12,6 +12,7 @@ use std::vec::Vec;
 
 #[derive(Debug)]
 pub enum Reader {
+    Errors { errs: Vec<String> },
     Capture { buf: Vec<u8> },
 }
 
@@ -20,10 +21,21 @@ impl Reader {
         let size = 1024;
 
         match self { 
-            Reader::Capture { buf } => {
-                let nread = sys::read(fd, buf, size).expect("read from df");
+            Reader::Errors { errs } => {
+                let mut err = Vec::new();
+                let nread = sys::read(fd, &mut err, 65536)
+                    .expect("read err from fd");
+                if nread > 0 {
+                    errs.push(String::from_utf8_lossy(&err).to_string());
+                }
+                eprintln!("Reader::Errors read {}", nread);
                 nread > 0
-            }
+            },
+
+            Reader::Capture { buf } => {
+                let nread = sys::read(fd, buf, size).expect("read from fd");
+                nread > 0
+            },
         }
     }
 }

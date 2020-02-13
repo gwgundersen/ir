@@ -26,6 +26,12 @@ fn main() {
 
     let env = environ::build(std::env::vars(), &spec.env);
 
+    // Build pipe for passing errors from child to parent.
+    let (err_read_fd, err_write_fd) = sys::pipe().unwrap_or_else(|err| {
+        eprintln!("failed to create err pipe: {}", err);
+        std::process::exit(exitcode::OSERR);
+    });
+
     // Build fd managers.
     let mut fds = spec.fds.iter().map(|(fd_str, fd_spec)| {
         // FIXME: Parse when deserializing, rather than here.
@@ -48,6 +54,9 @@ fn main() {
         // Child process.
         // FIXME: Collect errors and send to parent.
 
+        // Close the read end of the error pipe.
+        sys::close(err_read_fd).unwrap();
+
         for fd in &mut fds {
             // FIXME: Errors.
             (*fd).set_up_in_child().unwrap_or_else(|err| {
@@ -59,6 +68,12 @@ fn main() {
         let exe = &spec.argv[0];
         // FIXME: Errors.
         let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();
+
+        let err_str = err.to_string();
+        let err_bytes = err_str.as_bytes();
+        let err_len = err_bytes.len();
+        sys::write(err_write_fd, &err_len.to_ne_bytes()).unwrap();
+        sys::write(err_write_fd, err_bytes).unwrap();
 
         for fd in &mut fds {
             // FIXME: Errors.
@@ -74,6 +89,9 @@ fn main() {
     else {
         // Parent process.
 
+        // Close the write end of the error pipe.
+        sys::close(err_write_fd).unwrap();
+
         // Set up the selector, which will manage events while the child runs.
         let mut selecter = sel::Selecter::new();
         for fd in &mut fds {
@@ -83,6 +101,8 @@ fn main() {
                 std::process::exit(exitcode::OSERR);
             });
         }
+        selecter.insert_reader(
+            err_read_fd, sel::Reader::Errors { errs: Vec::new() });
 
         while selecter.any() {
             match selecter.select(None) {
@@ -106,6 +126,14 @@ fn main() {
             Err(err) => panic!("wait4 failed: {}", err),
         };
         assert_eq!(wait_pid, child_pid);  // FIXME: Errors.
+
+        for err in (match selecter.remove_reader(err_read_fd) {
+            sel::Reader::Errors { errs } => errs,
+            _ => panic!("foo"),
+        }
+        ).iter() {
+            eprintln!("ERROR: {}", err);
+        }
 
         let mut result = res::Res::new();
         let mut proc_res = res::ProcRes::new(child_pid, status, rusage);

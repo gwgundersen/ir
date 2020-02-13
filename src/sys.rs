@@ -242,3 +242,16 @@ pub fn wait4(pid: pid_t, block: bool) -> io::Result<Option<(pid_t, c_int, rusage
     }
 }
 
+pub fn write(fd: fd_t, data: &[u8]) -> io::Result<()> {
+    match unsafe {
+        libc::write(fd, data.as_ptr() as *const libc::c_void, data.len())
+    } {
+        -1 => Err(io::Error::last_os_error()),
+        n if n == data.len() as isize => Ok(()),
+        _ => {
+            // FIXME: Keep writing.
+            panic!("short write");
+        }
+    }
+}
+
