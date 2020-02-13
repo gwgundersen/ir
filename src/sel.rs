@@ -22,14 +22,25 @@ impl Reader {
 
         match self { 
             Reader::Errors { errs } => {
-                let mut err = Vec::new();
-                let nread = sys::read(fd, &mut err, 65536)
-                    .expect("read err from fd");
-                if nread > 0 {
-                    errs.push(String::from_utf8_lossy(&err).to_string());
+                // Read the error message length.
+                let len_len = std::mem::size_of::<usize>();
+                let mut len_buf = Vec::with_capacity(len_len);
+                let mut nread = sys::read(fd, &mut len_buf, len_len)
+                    .expect("read err len from fd") as usize;
+                if nread == 0 {
+                    return false;
                 }
-                eprintln!("Reader::Errors read {}", nread);
-                nread > 0
+                assert_eq!(nread, len_len);
+
+                let mut len_arr = [0; 8];
+                len_arr.copy_from_slice(&mut len_buf[..8]);
+                let len = usize::from_ne_bytes(len_arr);
+
+                let mut err_buf = Vec::with_capacity(len);
+                nread = sys::read(fd, &mut err_buf, len).expect("read err from fd") as usize;
+                assert_eq!(nread, len);
+                errs.push(String::from_utf8_lossy(&err_buf).to_string());
+                true
             },
 
             Reader::Capture { buf } => {

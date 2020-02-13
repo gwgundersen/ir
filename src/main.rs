@@ -66,9 +66,10 @@ fn main() {
         }
 
         let exe = &spec.argv[0];
-        // FIXME: Errors.
         let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();
 
+        // exec failed; send the error to the parent process.
+        // FIXME: Encapsulate this.
         let err_str = err.to_string();
         let err_bytes = err_str.as_bytes();
         let err_len = err_bytes.len();
@@ -82,9 +83,6 @@ fn main() {
                 std::process::exit(exitcode::OSERR);
             });
         }
-
-        // FIXME: Send this back to the parent process.
-        eprintln!("failed to exec: {}", err);
     }
     else {
         // Parent process.
