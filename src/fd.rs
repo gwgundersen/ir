@@ -176,7 +176,7 @@ pub trait Fd {
 
     /// Called in parent process after wait().
     // FIXME: Return something that becomes JSON null in result.
-    fn clean_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<(Option<FdRes>)> {
+    fn clean_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<Option<FdRes>> {
         Ok(None)
     }
 
@@ -250,7 +250,7 @@ impl Fd for File {
         Ok(())
     }
 
-    fn clean_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<(Option<FdRes>)> {
+    fn clean_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<Option<FdRes>> {
         Ok(Some(FdRes::File { path: self.path.clone() }))
     }
 }
@@ -309,7 +309,7 @@ impl Fd for TempFileCapture {
         Ok(())
     }
 
-    fn clean_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<(Option<FdRes>)> {
+    fn clean_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<Option<FdRes>> {
         let mut file = unsafe {
             let file = std::fs::File::from_raw_fd(self.tmp_fd);
             self.tmp_fd = -1;
@@ -378,7 +378,7 @@ impl Fd for MemoryCapture {
     }
 
     /// Called in parent process after wait().
-    fn clean_up_in_parent(&mut self, selecter: &mut Selecter) -> io::Result<(Option<FdRes>)> {
+    fn clean_up_in_parent(&mut self, selecter: &mut Selecter) -> io::Result<Option<FdRes>> {
         // FIXME: We should consume readers instead of swapping out.
         match selecter.remove_reader(self.read_fd) {
             Reader::Capture { mut buf } => {

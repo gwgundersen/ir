@@ -94,6 +94,9 @@ following aliases:
     via a pipe.  This means ir's memory usage will grow as the process produces
     more output.
     
+  - `"memory"`: Connect the file to a pipe, and read from the pipe into a memory
+    buffer as the program runs.
+
   `capture_format` specifies how to represent the captured data, and may be:
   
   - `"text"` (default): Treat the data as UTF-8-encded text, and include it in

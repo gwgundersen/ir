@@ -24,7 +24,7 @@ fn echo_hello() -> Result<(), Box<dyn std::error::Error>> {
     let utime =
         utime["tv_sec"].as_f64().unwrap()
         + 1e-6 * utime["tv_usec"].as_f64().unwrap();
-    assert!(utime > 0.);
+    assert!(utime >= 0.);
 
     Ok(())
 }
