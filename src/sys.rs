@@ -9,7 +9,6 @@ use std::string::String;
 use std::vec::Vec;
 
 use crate::environ::Env;
-use crate::err::{Error, Result};
 
 #[allow(non_camel_case_types)]
 pub type fd_t = c_int;
@@ -183,7 +182,7 @@ pub fn pipe() -> io::Result<(fd_t, fd_t)> {
     }
 }
 
-pub fn read(fd: fd_t, buf: &mut Vec<u8>, nbyte: size_t) -> Result<ssize_t> {
+pub fn read(fd: fd_t, buf: &mut Vec<u8>, nbyte: size_t) -> io::Result<ssize_t> {
     let pos = buf.len();
     buf.reserve(pos + nbyte);
     match unsafe {
@@ -192,34 +191,8 @@ pub fn read(fd: fd_t, buf: &mut Vec<u8>, nbyte: size_t) -> Result<ssize_t> {
         buf.set_len(pos + read as usize);
         read
     } {
-        -1 => Err(Error::last_os_error()),
-        // FIXME: Wrong place to handle this.
-        0 => Err(Error::Eof),
+        -1 => Err(io::Error::last_os_error()),
         nread if nread >= 0 => Ok(nread),
-        ret => panic!("read returned {}", ret),
-    }
-}
-
-/// Reads a string from a file descriptor.  See `write_str`.
-// FIXME: Elsewhere.
-pub fn read_str(fd: fd_t) -> Result<String> {
-    let len = read_usize(fd)?;
-    let mut buf = Vec::with_capacity(len);
-    let nread = read(fd, &mut buf, len)? as usize;
-    assert_eq!(nread, len, "short read");
-    Ok(String::from_utf8_lossy(&buf).to_string())
-}
-
-pub fn read_usize(fd: fd_t) -> Result<usize> {
-    let mut data: [u8; 8] = [0; 8];
-    match unsafe {
-        libc::read(fd, &mut data as *mut [u8] as *mut libc::c_void, 8)
-    }
-    {
-        -1 => Err(Error::last_os_error()),
-        0 => Err(Error::Eof),
-        8 => Ok(usize::from_ne_bytes(data)),
-        // FIXME: Handle closed fd.
         ret => panic!("read returned {}", ret),
     }
 }
@@ -269,32 +242,13 @@ pub fn wait4(pid: pid_t, block: bool) -> io::Result<Option<(pid_t, c_int, rusage
     }
 }
 
-pub fn write(fd: fd_t, data: &[u8]) -> io::Result<()> {
+pub fn write(fd: fd_t, data: &[u8]) -> io::Result<ssize_t> {
     match unsafe {
         libc::write(fd, data.as_ptr() as *const libc::c_void, data.len())
     } {
         -1 => Err(io::Error::last_os_error()),
-        n if n == data.len() as isize => Ok(()),
-        _ => {
-            // FIXME: Retry short write.
-            // FIXME: Handle closed fd.
-            panic!("short write");
-        }
+        n if n >= 0 => Ok(n),
+        ret => panic!("write returned {}", ret),
     }
-}
-
-/// Writes a string to `fd`.
-///
-/// First writes the string length as NE usize, followed by the UTF-8 bytes of
-/// the string.  Use `read_str` to read.
-// FIXME: Elsewhere.
-pub fn write_str(fd: fd_t, s: &str) -> io::Result<()> {
-    let bytes = s.as_bytes();
-    write_usize(fd, bytes.len())?;
-    write(fd, bytes)
-}
-
-pub fn write_usize(fd: fd_t, val: usize) -> io::Result<()> {
-    return write(fd, &val.to_ne_bytes());
 }
 

@@ -4,6 +4,7 @@
 pub mod environ;
 pub mod err;
 pub mod fd;
+pub mod fdio;
 pub mod res;
 pub mod sel;
 pub mod spec;

@@ -1,4 +1,5 @@
 use crate::err::Error;
+use crate::fdio;
 use crate::sys;
 use crate::sys::{FdSet, fd_t};
 use std::collections::{BTreeMap, HashSet};
@@ -25,7 +26,7 @@ impl Reader {
         match self { 
             Reader::Errors { errs } => {
                 errs.push(
-                    match sys::read_str(fd) {
+                    match fdio::read_str(fd) {
                         Ok(str) => str,
                         Err(Error::Eof) => return false,
                         Err(err) => panic!("error: {}", err),

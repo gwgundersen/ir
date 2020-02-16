@@ -6,6 +6,7 @@ extern crate exitcode;
 
 use ir::environ;
 use ir::fd::parse_fd;
+use ir::fdio;
 use ir::res;
 use ir::sel;
 use ir::spec;
@@ -70,7 +71,7 @@ fn main() {
         let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();
 
         // exec failed; send the error to the parent process.
-        sys::write_str(err_write_fd, &err.to_string()).unwrap();
+        fdio::write_str(err_write_fd, &err.to_string()).unwrap();
 
         for fd in &mut fds {
             // FIXME: Errors.
