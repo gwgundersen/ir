@@ -4,7 +4,7 @@ import ir
 def test_stdout_stderr(tmp_path):
     stdout_path = tmp_path / "stdout"
     stderr_path = tmp_path / "stderr"
-    res = ir.run({
+    res = ir.run1({
         "argv": [str(ir.TEST_EXE), "--exit", "42"],
         "fds": [
             ["1", {"file": {"path": str(stdout_path)}}],
@@ -28,7 +28,7 @@ def test_stdout_stderr(tmp_path):
 
 def test_stdout_stderr_merge(tmp_path):
     stderr_path = tmp_path / "stderr"
-    res = ir.run({
+    res = ir.run1({
         "argv": [str(ir.TEST_EXE), "--exit", "42"],
         "fds": [
             ["stderr", {"file": {"path": str(stderr_path)}}],

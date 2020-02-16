@@ -11,8 +11,8 @@ def test_echo(mode, format):
     """
     Tests basic capture of stdout.
     """
-    res = ir.run({
-        "argv": ["/bin/echo", "Hello, world.", "How are you?"],
+    res = ir.run1({
+        "argv": ["/usr/bin/echo", "Hello, world.", "How are you?"],
         "fds": [
             [
                 "stdout", {
@@ -44,7 +44,7 @@ def test_interleaved(mode):
     exe = TEST_DIR / "interleaved.py"
     assert exe.exists()
 
-    res = ir.run({
+    res = ir.run1({
         "argv": [
             str(exe),
         ],
@@ -81,7 +81,7 @@ def test_utf8_sanitize(mode):
     """
     Tests capturing invalid UTF-8 as text.
     """
-    res = ir.run({
+    res = ir.run1({
         "argv": [
             "/usr/bin/printf",
             "abc\200\200def",
