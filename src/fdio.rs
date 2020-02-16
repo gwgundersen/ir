@@ -27,17 +27,14 @@ pub fn read_into_vec(fd: fd_t, buf: &mut Vec<u8>, max_len: usize)-> Result<usize
 pub fn read_str(fd: fd_t) -> Result<String> {
     let len = read_usize(fd)?;
     let mut buf = Vec::with_capacity(len);
+    buf.resize(len, 0);
     sys::read(fd, &mut buf[..])?;
     Ok(String::from_utf8_lossy(&buf).to_string())
 }
 
 pub fn read_usize(fd: fd_t) -> Result<usize> {
     let mut data: [u8; 8] = [0; 8];
-    match unsafe {
-        libc::read(fd, &mut data as *mut [u8] as *mut libc::c_void, 8)
-    }
-    {
-        -1 => Err(Error::last_os_error()),
+    match sys::read(fd, &mut data)? {
         0 => Err(Error::Eof),
         8 => Ok(usize::from_ne_bytes(data)),
         ret => panic!("read_usize: read returned {}", ret),
