@@ -47,9 +47,7 @@ fn main() {
 
     // Fork the child process.
     let child_pid = sys::fork().unwrap_or_else(|err| {
-        eprintln!("failed to fork: {}", err);
-        // FIXME: Errors.
-        std::process::exit(exitcode::OSERR);
+        panic!("failed to fork: {}", err);
     });
 
     if child_pid == 0 {
