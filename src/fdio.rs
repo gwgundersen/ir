@@ -1,7 +1,5 @@
 /// Slightly higher-level file descriptor IO operations.
 
-extern crate libc;
-
 use crate::err::{Error, Result};
 use crate::sys;
 use crate::sys::fd_t;
