@@ -51,51 +51,64 @@ fn main() {
         // FIXME: Errors.
         std::process::exit(exitcode::OSERR);
     });
+
     if child_pid == 0 {
         // Child process.
-        // FIXME: Collect errors and send to parent.
 
         // Close the read end of the error pipe.
         sys::close(err_read_fd).unwrap();
+        // We'll write errors to the read end.
+        let error = |err: &str| {
+            fdio::write_str(err_write_fd, err).unwrap();
+        };
+        let mut ok = true;
 
         for fd in &mut fds {
-            // FIXME: Errors.
             (*fd).set_up_in_child().unwrap_or_else(|err| {
-                eprintln!("failed to set up fd {}: {}", fd.get_fd(), err);
-                std::process::exit(exitcode::OSERR);
+                error(&format!("failed to set up fd {}: {}", fd.get_fd(), err));
+                ok = false;
             });
+        }
+        if !ok {
+            std::process::exit(exitcode::OSERR);
         }
 
         let exe = &spec.argv[0];
-        // FIXME: Add more info: exec, and program name.
         let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();
-
-        // exec failed; send the error to the parent process.
-        fdio::write_str(err_write_fd, &err.to_string()).unwrap();
+        // If we got here, exec failed; send the error to the parent process.
+        error(&format!("exec: {}: {}", exe, err));
+        ok = false;
 
         for fd in &mut fds {
-            // FIXME: Errors.
             (*fd).clean_up_in_child().unwrap_or_else(|err| {
-                eprintln!("failed to clean up fd {}: {}", fd.get_fd(), err);
-                std::process::exit(exitcode::OSERR);
+                error(&format!("failed to clean up fd {}: {}", fd.get_fd(), err));
+                ok = false;
             });
         }
+
+        std::process::exit(if ok { exitcode::OK } else { exitcode::OSERR });
     }
+
     else {
         // Parent process.
 
+        let mut result = res::Res::new();
+
         // Close the write end of the error pipe.
         sys::close(err_write_fd).unwrap();
+        // Errors go directly into the result.
+        let mut error = |err: String| {
+            result.errors.push(err);
+        };
 
         // Set up the selector, which will manage events while the child runs.
         let mut selecter = sel::Selecter::new();
         for fd in &mut fds {
-            // FIXME: Errors.
             (*fd).set_up_in_parent(&mut selecter).unwrap_or_else(|err| {
-                eprintln!("failed to set up fd {}: {}", fd.get_fd(), err);
-                std::process::exit(exitcode::OSERR);
+                error(format!("failed to set up fd {}: {}", fd.get_fd(), err));
             });
         }
+        // Read errors from the error pipe.
         selecter.insert_reader(
             err_read_fd, sel::Reader::Errors { errs: Vec::new() });
 
@@ -122,14 +135,15 @@ fn main() {
         };
         assert_eq!(wait_pid, child_pid);  // FIXME: Errors.
 
-        let mut result = res::Res::new();
-        let mut proc_res = res::ProcRes::new(child_pid, status, rusage);
-
         // Fetch errors from error pipe into results.
-        result.errors = match selecter.remove_reader(err_read_fd) {
+        for err in match selecter.remove_reader(err_read_fd) {
             sel::Reader::Errors { errs } => errs,
-            _ => panic!("foo"),
-        };
+            _ => panic!("wrong sel for error pipe"),
+        } {
+            error(err);
+        }
+
+        let mut proc_res = res::ProcRes::new(child_pid, status, rusage);
 
         for fd in &mut fds {
             match (*fd).clean_up_in_parent(&mut selecter) {
@@ -139,10 +153,8 @@ fn main() {
                 Ok(None) => {
                 },
                 Err(err) => {
-                    result.errors.push(
-                        format!("failed to clean up fd {}: {}", fd.get_fd(), err)
-                    );
                     proc_res.fds.insert(ir::fd::get_fd_name(fd.get_fd()), res::FdRes::None {});
+                    error(format!("failed to clean up fd {}: {}", fd.get_fd(), err));
                 },
             }
         }
@@ -151,9 +163,8 @@ fn main() {
 
         res::print(&result);
         println!("");
-    }
 
-    // FIXME: Fail if errors.
-    std::process::exit(exitcode::OK);
+        std::process::exit(if result.errors.len() > 0 { 1 } else { exitcode::OK });
+    }
 }
 
