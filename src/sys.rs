@@ -9,6 +9,7 @@ use std::string::String;
 use std::vec::Vec;
 
 use crate::environ::Env;
+use crate::err::{Error, Result};
 
 #[allow(non_camel_case_types)]
 pub type fd_t = c_int;
@@ -182,7 +183,7 @@ pub fn pipe() -> io::Result<(fd_t, fd_t)> {
     }
 }
 
-pub fn read(fd: fd_t, buf: &mut Vec<u8>, nbyte: size_t) -> io::Result<ssize_t> {
+pub fn read(fd: fd_t, buf: &mut Vec<u8>, nbyte: size_t) -> Result<ssize_t> {
     let pos = buf.len();
     buf.reserve(pos + nbyte);
     match unsafe {
@@ -191,8 +192,24 @@ pub fn read(fd: fd_t, buf: &mut Vec<u8>, nbyte: size_t) -> io::Result<ssize_t> {
         buf.set_len(pos + read as usize);
         read
     } {
-        -1 => Err(io::Error::last_os_error()),
+        -1 => Err(Error::last_os_error()),
+        0 => Err(Error::Eof),
         nread if nread >= 0 => Ok(nread),
+        // FIXME: Handle closed fd.
+        ret => panic!("read returned {}", ret),
+    }
+}
+
+pub fn read_usize(fd: fd_t) -> Result<usize> {
+    let mut data: [u8; 8] = [0; 8];
+    match unsafe {
+        libc::read(fd, &mut data as *mut [u8] as *mut libc::c_void, 8)
+    }
+    {
+        -1 => Err(Error::last_os_error()),
+        0 => Err(Error::Eof),
+        8 => Ok(usize::from_ne_bytes(data)),
+        // FIXME: Handle closed fd.
         ret => panic!("read returned {}", ret),
     }
 }
@@ -249,9 +266,14 @@ pub fn write(fd: fd_t, data: &[u8]) -> io::Result<()> {
         -1 => Err(io::Error::last_os_error()),
         n if n == data.len() as isize => Ok(()),
         _ => {
-            // FIXME: Keep writing.
+            // FIXME: Retry short write.
+            // FIXME: Handle closed fd.
             panic!("short write");
         }
     }
+}
+
+pub fn write_usize(fd: fd_t, val: usize) -> io::Result<()> {
+    return write(fd, &val.to_ne_bytes());
 }
 

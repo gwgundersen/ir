@@ -1,3 +1,4 @@
+use crate::err::Error;
 use crate::sys;
 use crate::sys::{FdSet, fd_t};
 use std::collections::{BTreeMap, HashSet};
@@ -17,27 +18,21 @@ pub enum Reader {
 }
 
 impl Reader {
+    // FIXME: Rewrite this to return a Result, and handle Error::Eof in caller.
     fn ready(&mut self, fd: fd_t) -> bool {
         let size = 1024;
 
         match self { 
             Reader::Errors { errs } => {
                 // Read the error message length.
-                let len_len = std::mem::size_of::<usize>();
-                let mut len_buf = Vec::with_capacity(len_len);
-                let mut nread = sys::read(fd, &mut len_buf, len_len)
-                    .expect("read err len from fd") as usize;
-                if nread == 0 {
-                    return false;
-                }
-                assert_eq!(nread, len_len);
-
-                let mut len_arr = [0; 8];
-                len_arr.copy_from_slice(&mut len_buf[..8]);
-                let len = usize::from_ne_bytes(len_arr);
+                let len = match sys::read_usize(fd) {
+                    Ok(len) => len,
+                    Err(Error::Eof) => return false,
+                    Err(err) => panic!("error: {}", err),
+                };
 
                 let mut err_buf = Vec::with_capacity(len);
-                nread = sys::read(fd, &mut err_buf, len).expect("read err from fd") as usize;
+                let nread = sys::read(fd, &mut err_buf, len).expect("read err from fd") as usize;
                 assert_eq!(nread, len);
                 errs.push(String::from_utf8_lossy(&err_buf).to_string());
                 true

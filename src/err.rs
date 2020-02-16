@@ -5,13 +5,21 @@
 
 #[derive(Debug)]
 pub enum Error {
+    Eof,
     Io(std::io::Error),
     ParseInt(std::num::ParseIntError),
+}
+
+impl Error {
+    pub fn last_os_error() -> Error {
+        Error::Io(std::io::Error::last_os_error())
+    }
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
+            Error::Eof => f.write_str("EOF"),
             Error::Io(ref err) => err.fmt(f),
             Error::ParseInt(ref err) => err.fmt(f),
         }
@@ -21,6 +29,7 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn description(&self) -> &str {
         match *self {
+            Error::Eof => "EOF",
             Error::Io(ref err) => err.description(),
             Error::ParseInt(ref err) => err.description(),
         }

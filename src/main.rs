@@ -73,8 +73,7 @@ fn main() {
         // FIXME: Encapsulate this.
         let err_str = err.to_string();
         let err_bytes = err_str.as_bytes();
-        let err_len = err_bytes.len();
-        sys::write(err_write_fd, &err_len.to_ne_bytes()).unwrap();
+        sys::write_usize(err_write_fd, err_bytes.len()).unwrap();
         sys::write(err_write_fd, err_bytes).unwrap();
 
         for fd in &mut fds {
