@@ -9,13 +9,17 @@ use std::string::String;
 
 //------------------------------------------------------------------------------
 
-pub fn read(fd: fd_t, buf: &mut Vec<u8>, len: usize) -> Result<()> {
-    match sys::read(fd, buf, len)? {
-        n if n as usize == len => Ok(()),
+/// Reads up to `max_len` bytes from `fd`, appending to `buf`.
+pub fn read_into_vec(fd: fd_t, buf: &mut Vec<u8>, max_len: usize)-> Result<usize> {
+    let pos = buf.len();
+    buf.resize(pos + max_len, 0);
+
+    // FIXME: Handle EAGAIN.
+    let nread = sys::read(fd, &mut buf[pos .. pos + max_len])?;
+    buf.truncate(pos + nread);
+    match nread {
         0 => Err(Error::Eof),
-        // FIXME: Handle short read.
-        // FIXME: Handle EAGAIN.
-        n => panic!("short read: {} {}", len, n),
+        n => Ok(n),
     }
 }
 
@@ -23,7 +27,7 @@ pub fn read(fd: fd_t, buf: &mut Vec<u8>, len: usize) -> Result<()> {
 pub fn read_str(fd: fd_t) -> Result<String> {
     let len = read_usize(fd)?;
     let mut buf = Vec::with_capacity(len);
-    read(fd, &mut buf, len)?;
+    sys::read(fd, &mut buf[..])?;
     Ok(String::from_utf8_lossy(&buf).to_string())
 }
 

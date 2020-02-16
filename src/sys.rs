@@ -1,6 +1,6 @@
 extern crate libc;
 
-use libc::{c_int, pid_t, rusage, size_t, ssize_t};
+use libc::{c_int, pid_t, rusage, ssize_t};
 use std::ffi::CString;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -182,17 +182,12 @@ pub fn pipe() -> io::Result<(fd_t, fd_t)> {
     }
 }
 
-pub fn read(fd: fd_t, buf: &mut Vec<u8>, nbyte: size_t) -> io::Result<ssize_t> {
-    let pos = buf.len();
-    buf.reserve(pos + nbyte);
+pub fn read(fd: fd_t, buf: &mut [u8]) -> io::Result<usize> {
     match unsafe {
-        let ptr = buf.as_mut_ptr().offset(pos as isize);
-        let read = libc::read(fd, ptr as *mut libc::c_void, nbyte);
-        buf.set_len(pos + read as usize);
-        read
+        libc::read(fd, buf.as_mut_ptr() as *mut libc::c_void, buf.len())
     } {
         -1 => Err(io::Error::last_os_error()),
-        nread if nread >= 0 => Ok(nread),
+        n if n >= 0 => Ok(n as usize),
         ret => panic!("read returned {}", ret),
     }
 }

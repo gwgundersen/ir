@@ -1,7 +1,6 @@
 use crate::err::Error;
 use crate::fdio;
-use crate::sys;
-use crate::sys::{FdSet, fd_t};
+use crate::sys::{FdSet, fd_t, select};
 use std::collections::{BTreeMap, HashSet};
 use std::io;
 use std::vec::Vec;
@@ -36,8 +35,11 @@ impl Reader {
             },
 
             Reader::Capture { buf } => {
-                let nread = sys::read(fd, buf, size).expect("read from fd");
-                nread > 0
+                match fdio::read_into_vec(fd, buf, size) {
+                    Ok(_) => true,
+                    Err(Error::Eof) => false,
+                    Err(err) => panic!("error: {}", err),
+                }
             },
         }
     }
@@ -79,7 +81,7 @@ impl Selecter {
         }
         let mut write_set = FdSet::new();
         let mut error_set = FdSet::new();
-        sys::select(&mut read_set, &mut write_set, &mut error_set, timeout)?;
+        select(&mut read_set, &mut write_set, &mut error_set, timeout)?;
 
         for (fd, reader) in self.readers.iter_mut() {
             if read_set.is_set(*fd) && ! reader.ready(*fd) {
