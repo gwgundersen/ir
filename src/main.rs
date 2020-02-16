@@ -125,13 +125,13 @@ fn main() {
         };
 
         // Might have been interrupted by SIGCHLD.
-        // FIXME: Errors.
         let (wait_pid, status, rusage) = match sys::wait4(child_pid, true) {
             Ok(Some(r)) => r,
             Ok(None) => panic!("wait4 empty result"),
+            // FIXME: Handle EINTR.
             Err(err) => panic!("wait4 failed: {}", err),
         };
-        assert_eq!(wait_pid, child_pid);  // FIXME: Errors.
+        assert_eq!(wait_pid, child_pid);
 
         // Fetch errors from error pipe into results.
         for err in match selecter.remove_reader(err_read_fd) {
