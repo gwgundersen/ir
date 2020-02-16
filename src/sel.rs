@@ -24,17 +24,13 @@ impl Reader {
 
         match self { 
             Reader::Errors { errs } => {
-                // Read the error message length.
-                let len = match sys::read_usize(fd) {
-                    Ok(len) => len,
-                    Err(Error::Eof) => return false,
-                    Err(err) => panic!("error: {}", err),
-                };
-
-                let mut err_buf = Vec::with_capacity(len);
-                let nread = sys::read(fd, &mut err_buf, len).expect("read err from fd") as usize;
-                assert_eq!(nread, len);
-                errs.push(String::from_utf8_lossy(&err_buf).to_string());
+                errs.push(
+                    match sys::read_str(fd) {
+                        Ok(str) => str,
+                        Err(Error::Eof) => return false,
+                        Err(err) => panic!("error: {}", err),
+                    }
+                );
                 true
             },
 

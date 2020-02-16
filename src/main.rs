@@ -70,11 +70,7 @@ fn main() {
         let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();
 
         // exec failed; send the error to the parent process.
-        // FIXME: Encapsulate this.
-        let err_str = err.to_string();
-        let err_bytes = err_str.as_bytes();
-        sys::write_usize(err_write_fd, err_bytes.len()).unwrap();
-        sys::write(err_write_fd, err_bytes).unwrap();
+        sys::write_str(err_write_fd, &err.to_string()).unwrap();
 
         for fd in &mut fds {
             // FIXME: Errors.
