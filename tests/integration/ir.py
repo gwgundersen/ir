@@ -28,7 +28,6 @@ def run1(spec):
             stdout=subprocess.PIPE,
             env={**os.environ, "RUST_BACKTRACE": "1"},
         )
-        assert res.returncode == 0, f"ir exited {res.returncode}"
     res = json.loads(res.stdout)
     json.dump(res, sys.stderr, indent=2)
 
