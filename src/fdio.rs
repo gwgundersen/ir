@@ -14,6 +14,7 @@ pub fn read(fd: fd_t, buf: &mut Vec<u8>, len: usize) -> Result<()> {
         n if n as usize == len => Ok(()),
         0 => Err(Error::Eof),
         // FIXME: Handle short read.
+        // FIXME: Handle EAGAIN.
         n => panic!("short read: {} {}", len, n),
     }
 }
@@ -44,6 +45,7 @@ pub fn write(fd: fd_t, data: &[u8]) -> Result<()> {
         n if n as usize == data.len() => Ok(()),
         0 => Err(Error::Eof),
         // FIXME: Handle short write.
+        // FIXME: Handle EAGAIN.
         n => panic!("short write: {} {}", data.len(), n),
     }
 }
