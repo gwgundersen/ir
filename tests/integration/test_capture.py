@@ -12,7 +12,7 @@ def test_echo(mode, format):
     Tests basic capture of stdout.
     """
     res = ir.run1({
-        "argv": ["/usr/bin/echo", "Hello, world.", "How are you?"],
+        "argv": ["/bin/echo", "Hello, world.", "How are you?"],
         "fds": [
             [
                 "stdout", {

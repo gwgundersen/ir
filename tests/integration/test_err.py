@@ -19,7 +19,7 @@ def test_bad_capture_path():
     """
     with pytest.raises(ir.Errors) as exc_info:
         ir.run1({
-            "argv": ["/usr/bin/echo", "Hello, world!"],
+            "argv": ["/bin/echo", "Hello, world!"],
             "fds": [
                 ["stdout", {"file": {"path": "/not/a/valid/path",}}],
                 ["stderr", {"file": {"path": "/not/a/valid/path/either",}}],
