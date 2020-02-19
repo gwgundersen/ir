@@ -7,6 +7,8 @@ use std::path::Path;
 use std::string::String;
 
 //------------------------------------------------------------------------------
+// Spec error
+//------------------------------------------------------------------------------
 
 #[derive(Debug)]
 pub enum Error {
@@ -46,6 +48,8 @@ impl From<serde_json::error::Error> for Error {
 
 type Result<T> = std::result::Result<T, Error>;
 
+//------------------------------------------------------------------------------
+// Process spec
 //------------------------------------------------------------------------------
 
 #[derive(Serialize, Deserialize, Default, Debug)]
