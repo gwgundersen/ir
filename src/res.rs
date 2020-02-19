@@ -1,6 +1,6 @@
 /// Named "Res" to avoid confusion with the `Result` types.
 
-use crate::fd::spec::CaptureFormat;
+use crate::spec::CaptureFormat;
 use libc::{c_int, pid_t, rusage};
 use std::collections::BTreeMap;
 use std::path::PathBuf;

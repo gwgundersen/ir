@@ -1,69 +1,9 @@
+use crate::spec;
 use std::collections::BTreeMap;
 
 //------------------------------------------------------------------------------
 
 pub type Env = BTreeMap<String, String>;  // FIXME: Use OsString instead?
-
-pub mod spec {
-
-    use serde::{Serialize, Deserialize, Deserializer};
-    use std::fmt;
-    use std::string::String;
-    use std::vec::Vec;
-
-    #[derive(Serialize, Debug, PartialEq)]
-    #[serde(deny_unknown_fields)]
-    pub enum EnvInherit {
-        None,
-        All,
-        Vars(Vec<String>),  // FIXME: Use OsString instead?
-    }
-
-    impl Default for EnvInherit {
-        fn default() -> Self { Self::All }
-    }
-
-    impl<'de> Deserialize<'de> for EnvInherit {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>
-        {
-            struct Visitor;
-            impl<'de> serde::de::Visitor<'de> for Visitor {
-                type Value = EnvInherit;
-
-                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                    formatter.write_str("true, false, or seq of env var names")
-                }
-
-                fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E> {
-                    Ok(if v { Self::Value::All } else { Self::Value::None })
-                }
-
-                fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error> 
-                where
-                    S: serde::de::SeqAccess<'de>
-                {
-                    let mut vars = Vec::new();
-                    while let Some(var) = seq.next_element()? {
-                        vars.push(var);
-                    }                    
-                    Ok(Self::Value::Vars(vars))
-                }
-            }
-
-            deserializer.deserialize_any(Visitor)
-        }
-    }
-
-    #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
-    #[serde(deny_unknown_fields, default)]
-    pub struct Env {
-        pub inherit: EnvInherit,
-        pub vars: super::Env,
-    }
-
-}
 
 //------------------------------------------------------------------------------
 

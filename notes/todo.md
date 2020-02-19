@@ -1,5 +1,4 @@
 - [ ] multiple procs in a single file, run in parallel (identified how?)
-- [ ] refactor specs into package
 - spec validation
   - [ ] no fd is given more than once
 - [ ] 'stdin', 'stdout', 'stderr' aliases to fds, consistently
