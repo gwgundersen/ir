@@ -18,7 +18,7 @@ fn main() {
         None => panic!("no file given"),  // FIXME
     };
 
-    let spec = spec::load_spec_file(&json_path).unwrap_or_else(|err| {
+    let spec = spec::load_file(&json_path).unwrap_or_else(|err| {
         eprintln!("failed to load {}: {}", json_path, err);
         std::process::exit(exitcode::OSFILE);
     });

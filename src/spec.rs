@@ -51,18 +51,18 @@ type Result<T> = std::result::Result<T, Error>;
 #[derive(Serialize, Deserialize, Default, Debug)]
 #[serde(deny_unknown_fields)]
 #[serde(default)]
-pub struct Spec {
+pub struct Proc {
     pub argv: Vec<String>,
     pub env: environ::spec::Env,
     pub fds: Vec<(String, fd::spec::Fd)>,
 }
 
-pub fn load_spec_file<P: AsRef<Path>>(path: P) -> Result<Spec> {
+pub fn load_file<P: AsRef<Path>>(path: P) -> Result<Proc> {
     // Open the file in read-only mode with buffer.
     let file = File::open(path)?;
     let reader = BufReader::new(file);
 
-    // Read the JSON contents of the file as an instance of `Spec`.
+    // Read the JSON contents of the file as an instance of `Proc`.
     let spec = serde_json::from_reader(reader)?;
 
     // Return the spec.
