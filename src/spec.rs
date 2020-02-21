@@ -227,7 +227,17 @@ pub struct Proc {
     pub fds: Vec<(String, Fd)>,
 }
 
-pub fn load_file<P: AsRef<Path>>(path: P) -> Result<Proc> {
+//------------------------------------------------------------------------------
+// Input spec
+//------------------------------------------------------------------------------
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct Input {
+    pub procs: Vec<Proc>,
+}
+
+pub fn load_file<P: AsRef<Path>>(path: P) -> Result<Input> {
     // Open the file in read-only mode with buffer.
     let file = File::open(path)?;
     let reader = BufReader::new(file);

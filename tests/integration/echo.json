@@ -1,6 +1,10 @@
 {
-    "argv": [
-        "/bin/echo",
-        "Hello, world."
-    ]
+  "procs": [
+    {
+      "argv": [
+          "/bin/echo",
+          "Hello, world."
+      ]
+    }
+  ]
 }
