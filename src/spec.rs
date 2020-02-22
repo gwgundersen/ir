@@ -21,12 +21,10 @@ where
     T: Deserialize<'de>,
     D: Deserializer<'de>,
 {
-    // This is a Visitor that forwards string types to T's `FromStr` impl and
-    // forwards map types to T's `Deserialize` impl. The `PhantomData` is to
-    // keep the compiler from complaining about T being an unused generic type
-    // parameter. We need T in order to know the Value type for the Visitor
-    // impl.
-    struct OneOrMany<T>(serde::export::PhantomData<fn() -> T>);
+    // The `PhantomData` is to keep the compiler from complaining about T being
+    // an unused generic type parameter.  aWe need T in order to know the Value
+    // type for the Visitor impl.
+    struct OneOrMany<T>(std::marker::PhantomData<fn() -> T>);
 
     impl<'de, T> serde::de::Visitor<'de> for OneOrMany<T>
     where
@@ -35,10 +33,10 @@ where
         type Value = Vec<T>;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("string or map")
+            formatter.write_str("a map or seq of maps")
         }
 
-        fn visit_seq<S>(self, mut seq: S) -> std::result::Result<Self::Value, S::Error>
+        fn visit_seq<S>(self, mut seq: S) -> std::result::Result<Vec<T>, S::Error>
         where
             S: serde::de::SeqAccess<'de>,
         {
@@ -49,7 +47,7 @@ where
             Ok(res)
         }
 
-        fn visit_map<M>(self, map: M) -> std::result::Result<Self::Value, M::Error>
+        fn visit_map<M>(self, map: M) -> std::result::Result<Vec<T>, M::Error>
         where
             M: serde::de::MapAccess<'de>,
         {
@@ -57,11 +55,13 @@ where
             // into a `Deserializer`, allowing it to be used as the input to T's
             // `Deserialize` implementation. T then deserializes itself using
             // the entries from the map visitor.
-            Ok(vec!(Deserialize::deserialize(serde::de::value::MapAccessDeserializer::new(map))?))
+            let res = Deserialize::deserialize(
+                serde::de::value::MapAccessDeserializer::new(map))?;
+            Ok(vec!(res))
         }
     }
 
-    deserializer.deserialize_any(OneOrMany(serde::export::PhantomData))
+    deserializer.deserialize_any(OneOrMany(std::marker::PhantomData))
 }
 
 //------------------------------------------------------------------------------
