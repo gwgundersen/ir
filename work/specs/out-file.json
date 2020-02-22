@@ -1,12 +1,14 @@
 {
-  "argv": [
-    "/bin/echo", "Hello, world!"
-  ],
-  "fds": [
-    ["1", {
-      "file": {
-        "path": "out-file.stdout"
-      }
-    }]
-  ]
+  "procs": {
+    "argv": [
+      "/bin/echo", "Hello, world!"
+    ],
+    "fds": [
+      ["1", {
+        "file": {
+          "path": "out-file.stdout"
+        }
+      }]
+    ]
+  }
 }

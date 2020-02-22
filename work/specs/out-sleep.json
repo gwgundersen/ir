@@ -1,7 +1,7 @@
 {
   "procs": {
     "argv": [
-      "/bin/bogus"
+      "/bin/sleep", "30"
     ]
   }
 }

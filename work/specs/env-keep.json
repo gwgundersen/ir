@@ -1,12 +1,14 @@
 {
-  "argv": [
-    "/usr/bin/printenv"
-  ],
-  "env": {
-    "inherit": ["PATH", "USER", "HOME", "BAR"],
-    "vars": {
-      "FOO": "xxxxxxxxxxxxxxxx",
-      "USER": "guest"
+  "procs": {
+    "argv": [
+      "/usr/bin/printenv"
+    ],
+    "env": {
+      "inherit": ["PATH", "USER", "HOME", "BAR"],
+      "vars": {
+        "FOO": "xxxxxxxxxxxxxxxx",
+        "USER": "guest"
+      }
     }
   }
 }

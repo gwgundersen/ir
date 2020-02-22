@@ -21,7 +21,7 @@ class Errors(Exception):
 
 def run1(spec):
     with tempfile.NamedTemporaryFile(mode="w+") as tmp_file:
-        json.dump({"procs": [spec]}, tmp_file)
+        json.dump({"procs": spec}, tmp_file)
         tmp_file.flush()
         res = subprocess.run(
             [str(IR_EXE), tmp_file.name],

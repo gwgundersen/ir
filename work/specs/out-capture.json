@@ -1,8 +1,11 @@
 {
-  "argv": [
-    "/bin/echo", "Hello, world!"
-  ],
-  "fds": [
-    ["stdout", {"capture": {}}]
-  ]
+  "procs":
+    {
+      "argv": [
+        "/bin/echo", "Hello, world!"
+      ],
+      "fds": [
+        ["stdout", {"capture": {}}]
+      ]
+    }
 }

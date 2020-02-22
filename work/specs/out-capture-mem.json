@@ -1,9 +1,11 @@
 {
-  "argv": [
-    "work/test-write.py"
-  ],
-  "fds": [
-    ["stdout", {"capture": {"mode": "memory", "format": "base64"}}],
-    ["stderr", {"capture": {"mode": "memory"}}]
-  ]
+  "procs": {
+    "argv": [
+      "work/test-write.py"
+    ],
+    "fds": [
+      ["stdout", {"capture": {"mode": "memory", "format": "base64"}}],
+      ["stderr", {"capture": {"mode": "memory"}}]
+    ]
+  }
 }
