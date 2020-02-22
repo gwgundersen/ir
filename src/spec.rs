@@ -10,6 +10,61 @@ use std::string::String;
 use std::vec::Vec;
 
 //------------------------------------------------------------------------------
+// Serde helpers
+//------------------------------------------------------------------------------
+
+/// Deserializer that accepts either a single map or a sequence of items.  In 
+/// the former case, the map is wrapped into a single-element sequence.
+
+fn one_or_many<'de, T, D>(deserializer: D) -> std::result::Result<Vec<T>, D::Error>
+where
+    T: Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    // This is a Visitor that forwards string types to T's `FromStr` impl and
+    // forwards map types to T's `Deserialize` impl. The `PhantomData` is to
+    // keep the compiler from complaining about T being an unused generic type
+    // parameter. We need T in order to know the Value type for the Visitor
+    // impl.
+    struct OneOrMany<T>(serde::export::PhantomData<fn() -> T>);
+
+    impl<'de, T> serde::de::Visitor<'de> for OneOrMany<T>
+    where
+        T: Deserialize<'de>,
+    {
+        type Value = Vec<T>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("string or map")
+        }
+
+        fn visit_seq<S>(self, mut seq: S) -> std::result::Result<Self::Value, S::Error>
+        where
+            S: serde::de::SeqAccess<'de>,
+        {
+            let mut res = Vec::new();
+            while let Some(e) = seq.next_element()? {
+                res.push(e);
+            }
+            Ok(res)
+        }
+
+        fn visit_map<M>(self, map: M) -> std::result::Result<Self::Value, M::Error>
+        where
+            M: serde::de::MapAccess<'de>,
+        {
+            // `MapAccessDeserializer` is a wrapper that turns a `MapAccess`
+            // into a `Deserializer`, allowing it to be used as the input to T's
+            // `Deserialize` implementation. T then deserializes itself using
+            // the entries from the map visitor.
+            Ok(vec!(Deserialize::deserialize(serde::de::value::MapAccessDeserializer::new(map))?))
+        }
+    }
+
+    deserializer.deserialize_any(OneOrMany(serde::export::PhantomData))
+}
+
+//------------------------------------------------------------------------------
 // Spec error
 //------------------------------------------------------------------------------
 
@@ -234,6 +289,7 @@ pub struct Proc {
 #[derive(Serialize, Deserialize, Default, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Input {
+    #[serde(deserialize_with = "one_or_many")]
     pub procs: Vec<Proc>,
 }
 

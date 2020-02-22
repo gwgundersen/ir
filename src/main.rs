@@ -21,7 +21,7 @@ fn main() {
     let spec = &mut spec::load_file(&json_path).unwrap_or_else(|err| {
         eprintln!("failed to load {}: {}", json_path, err);
         std::process::exit(exitcode::OSFILE);
-    }).procs[0];
+    }).procs[0];  // FIXME: Not just the first!
     eprintln!("spec: {:?}", spec);
     eprintln!("");
 
