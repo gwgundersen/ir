@@ -10,7 +10,7 @@
 - [ ] pdeath_sig
 - [ ] feed input into fd
 - [ ] fd to named temporary file, with path in result
-- [ ] results to file
+- [ ] results to file, via --output option or similar
 - [ ] periodic update of results file while running
 - [ ] rusage for self vs children
 - [ ] input fd (stdin etc) from file
