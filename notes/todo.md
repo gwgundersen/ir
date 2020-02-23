@@ -1,16 +1,16 @@
 - [ ] multiple procs in a single file, run in parallel (identified how?)
-- spec validation
-  - [ ] no fd is given more than once
-- [ ] 'stdin', 'stdout', 'stderr' aliases to fds, consistently
 - [ ] cwd
 - [ ] cwd before interpreting spec?
 - [ ] umask
 - [ ] handle signals and shut down cleanly
 - [ ] forward signals to subprocess
 - [ ] pdeath_sig
+- [ ] results to file, via --output option or similar
+- [ ] 'stdin', 'stdout', 'stderr' aliases to fds, consistently
+- spec validation
+  - [ ] no fd is given more than once
 - [ ] feed input into fd
 - [ ] fd to named temporary file, with path in result
-- [ ] results to file, via --output option or similar
 - [ ] periodic update of results file while running
 - [ ] rusage for self vs children
 - [ ] input fd (stdin etc) from file
