@@ -5,6 +5,7 @@ extern crate exitcode;
 #[macro_use] extern crate maplit;
 
 use ir::environ;
+use ir::fd::Fd;
 use ir::fd::parse_fd;
 use ir::fdio;
 use ir::res;
@@ -12,20 +13,27 @@ use ir::sel;
 use ir::spec;
 use ir::sys;
 
+// State related to a running proc.
+struct Proc {
+    pub spec: spec::Proc,
+    pub env: environ::Env,
+    pub fds: Vec<Box<dyn Fd>>,
+    pub pid: libc::pid_t,
+}
+
 fn main() {
     let json_path = match std::env::args().skip(1).next() {
         Some(p) => p,
         None => panic!("no file given"),  // FIXME
     };
 
-    let spec = &mut spec::load_file(&json_path).unwrap_or_else(|err| {
+
+    let input = &mut spec::load_file(&json_path).unwrap_or_else(|err| {
         eprintln!("failed to load {}: {}", json_path, err);
         std::process::exit(exitcode::OSFILE);
-    }).procs[0];  // FIXME: Not just the first!
-    eprintln!("spec: {:?}", spec);
+    });
+    eprintln!("input: {:?}", input);
     eprintln!("");
-
-    let env = environ::build(std::env::vars(), &spec.env);
 
     // Build pipe for passing errors from child to parent.
     let (err_read_fd, err_write_fd) = sys::pipe().unwrap_or_else(|err| {
@@ -33,22 +41,29 @@ fn main() {
         std::process::exit(exitcode::OSERR);
     });
 
-    // Build fd managers.
-    let mut fds = spec.fds.iter().map(|(fd_str, fd_spec)| {
-        // FIXME: Parse when deserializing, rather than here.
-        let fd_num = parse_fd(fd_str).unwrap_or_else(|err| {
-            eprintln!("failed to parse fd {}: {}", fd_str, err);
-            std::process::exit(exitcode::OSERR);
+    let mut procs = Vec::<Proc>::new();
+    for spec in input.procs {
+        let env = environ::build(std::env::vars(), &spec.env);
+
+        // Build fd managers.
+        let mut fds = spec.fds.iter().map(|(fd_str, fd_spec)| {
+            // FIXME: Parse when deserializing, rather than here.
+            let fd_num = parse_fd(fd_str).unwrap_or_else(|err| {
+                eprintln!("failed to parse fd {}: {}", fd_str, err);
+                std::process::exit(exitcode::OSERR);
+            });
+
+            // FIXME: Errors.
+            ir::fd::create_fd(fd_num, &fd_spec).unwrap()
+        }).collect::<Vec<_>>();
+
+        // Fork the child process.
+        let child_pid = sys::fork().unwrap_or_else(|err| {
+            panic!("failed to fork: {}", err);
         });
 
-        // FIXME: Errors.
-        ir::fd::create_fd(fd_num, &fd_spec).unwrap()
-    }).collect::<Vec<_>>();
-
-    // Fork the child process.
-    let child_pid = sys::fork().unwrap_or_else(|err| {
-        panic!("failed to fork: {}", err);
-    });
+        procs.push(Proc {spec, env, fds, pid: child_pid});
+    }
 
     if child_pid == 0 {
         // Child process.
