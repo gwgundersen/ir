@@ -19,9 +19,9 @@ class Errors(Exception):
 
 
 
-def run1(spec):
+def run(*specs):
     with tempfile.NamedTemporaryFile(mode="w+") as tmp_file:
-        json.dump({"procs": spec}, tmp_file)
+        json.dump({"procs": specs}, tmp_file)
         tmp_file.flush()
         res = subprocess.run(
             [str(IR_EXE), tmp_file.name],
@@ -34,8 +34,12 @@ def run1(spec):
     if len(res["errors"]) != 0:
         raise Errors(res["errors"])
 
+    return res["procs"]
+
+
+def run1(spec):
     # Return results for the single process only.
-    proc, = res["procs"]
+    proc, = run(spec)
     return proc
 
 
