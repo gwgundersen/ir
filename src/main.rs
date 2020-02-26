@@ -136,7 +136,7 @@ fn main() {
                 // select interrupted, possibly by SIGCHLD.  Keep going.
             },
             Err(err) => {
-                panic!("selected failed: {}", err)
+                panic!("select failed: {}", err)
             },
         };
     };
