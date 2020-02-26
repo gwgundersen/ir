@@ -31,7 +31,7 @@ pub fn get_fd_name(fd: fd_t) -> String {
     }
 }
 
-// FIXME: Generalize.
+// FIXME: Generalize: split out R/W/RW from file creation flags.
 fn get_oflags(flags: &spec::OpenFlag, fd: fd_t) -> libc::c_int {
     use spec::OpenFlag::*;
     match flags {
