@@ -1,4 +1,7 @@
 - [ ] multiple procs in a single file, run in parallel (identified how?)
+  - [ ] SIGCHLD dance
+  - [ ] tests
+  - [ ] tests with children that have subprocs
 - [ ] clean up oflags
 - [ ] cwd
 - [ ] cwd before interpreting spec?
