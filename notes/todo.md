@@ -1,4 +1,5 @@
 - [ ] multiple procs in a single file, run in parallel (identified how?)
+- [ ] clean up oflags
 - [ ] cwd
 - [ ] cwd before interpreting spec?
 - [ ] umask
