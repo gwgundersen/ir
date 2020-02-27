@@ -10,8 +10,7 @@ process:
 - the executable to run
 - the command line
 - the environment
-- stdin [planned], stdout, stderr
-- additional file descriptors
+- stdin [planned], stdout, stderr, and additional file descriptors
 - current working directory [planned]
 - umask [planned]
 - signal disposition [planned]
