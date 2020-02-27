@@ -33,7 +33,7 @@ An array of strings givign the argument vector list.  (required)
 The first element is used also used as the executable name.
 
 
-### Envs
+### Env
 
 How to construct the process environment.  (optional)
 
