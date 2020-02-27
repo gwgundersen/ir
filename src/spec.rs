@@ -22,7 +22,7 @@ where
     D: Deserializer<'de>,
 {
     // The `PhantomData` is to keep the compiler from complaining about T being
-    // an unused generic type parameter.  aWe need T in order to know the Value
+    // an unused generic type parameter.  We need T in order to know the Value
     // type for the Visitor impl.
     struct OneOrMany<T>(std::marker::PhantomData<fn() -> T>);
 
