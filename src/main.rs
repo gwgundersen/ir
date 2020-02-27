@@ -16,8 +16,9 @@ use libc::pid_t;
 use std::collections::BTreeMap;
 
 // State related to a running proc.
+#[derive(Default)]
 struct Proc {
-    pub spec: spec::Proc,
+    pub order: usize,
     pub env: environ::Env,
     pub fds: Vec<Box<dyn Fd>>,
     pub pid: pid_t,
@@ -51,9 +52,8 @@ fn main() {
     selecter.insert_reader(
         err_read_fd, sel::Reader::Errors { errs: Vec::new() });
 
-
     let mut procs = BTreeMap::<pid_t, Proc>::new();
-    for spec in input.procs {
+    for (order, spec) in input.procs.iter().enumerate() {
         let env = environ::build(std::env::vars(), &spec.env);
 
         // Build fd managers.
@@ -113,17 +113,17 @@ fn main() {
 
         // Parent process.
 
-        // Close the write end of the error pipe.
-        sys::close(err_write_fd).unwrap();
-
         for fd in &mut fds {
             (*fd).set_up_in_parent(&mut selecter).unwrap_or_else(|err| {
                 result.errors.push(format!("failed to set up fd {}: {}", fd.get_fd(), err));
             });
         }
 
-        procs.insert(child_pid, Proc {spec, env, fds, pid: child_pid});
+        procs.insert(child_pid, Proc {order, env, fds, pid: child_pid});
     }
+
+    // Close the write end of the error pipe.
+    sys::close(err_write_fd).unwrap();
 
     // FIXME: Merge select loop and wait loop, by handling SIGCHLD.
 
@@ -140,6 +140,11 @@ fn main() {
             },
         };
     };
+
+    // Create an empty vector of proc results.  We'll fill in the results in the
+    // same order as the original procs.
+    let mut proc_ress = Vec::new();
+    proc_ress.resize_with(procs.len(), || { None });
 
     while procs.len() > 0 {
         let (wait_pid, status, rusage) = match sys::wait4(-1, true) {
@@ -158,14 +163,6 @@ fn main() {
             }
         };
 
-        // Transfer errors retrieved from the error pipe buffer into results.
-        for err in match selecter.remove_reader(err_read_fd) {
-            sel::Reader::Errors { errs } => errs,
-            _ => panic!("wrong sel for error pipe"),
-        } {
-            result.errors.push(err);
-        }
-
         let mut proc_res = res::ProcRes::new(proc.pid, status, rusage);
 
         for fd in &mut proc.fds {
@@ -182,7 +179,18 @@ fn main() {
             }
         }
 
-        result.procs.push(proc_res);
+        proc_ress[proc.order] = Some(proc_res);
+    }
+
+    // Collect proc results in the correct order.
+    result.procs = proc_ress.into_iter().map(|r| { r.unwrap() }).collect();
+
+    // Transfer errors retrieved from the error pipe buffer into results.
+    for err in match selecter.remove_reader(err_read_fd) {
+        sel::Reader::Errors { errs } => errs,
+        _ => panic!("wrong sel for error pipe"),
+    } {
+        result.errors.push(err);
     }
 
     res::print(&result);

@@ -9,8 +9,12 @@ def test_multiple():
                 ["stdout", {"capture": {"mode": "memory"}}],
             ],
         }
-        for i in range(3)
+        for i in range(8)
     ))
-    print(res)
-    assert False
+
+    assert len(res) == 8
+    for i, proc in enumerate(res):
+        assert proc["status"] == 0
+        assert proc["fds"]["stdout"]["text"] == f"This is process #{i}.\n"
+
 

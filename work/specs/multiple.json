@@ -1,0 +1,20 @@
+{
+  "procs": [
+    {
+      "argv": ["/bin/echo", "This is process 0."],
+      "fds": [["stdout", {"capture": {"mode": "memory"}}]]
+    },
+    {
+      "argv": ["/bin/echo", "This is process 1."],
+      "fds": [["stdout", {"capture": {"mode": "memory"}}]]
+    },
+    {
+      "argv": ["/bin/echo", "This is process 2."],
+      "fds": [["stdout", {"capture": {"mode": "memory"}}]]
+    },
+    {
+      "argv": ["/bin/echo", "This is process 3."],
+      "fds": [["stdout", {"capture": {"mode": "memory"}}]]
+    }
+  ]
+}
