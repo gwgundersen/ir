@@ -3,7 +3,7 @@ A program for running other programs
 
 # Description
 
-`ir` takes a [JSON specification](docs/spec.md) of processes to run, and runs
+`ir` takes a [JSON specification](doc/spec.md) of processes to run, and runs
 them.  The JSON specification gives detailed control over all aspects of the
 process:
 
