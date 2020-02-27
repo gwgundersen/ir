@@ -14,8 +14,8 @@ process:
 - additional file descriptors
 - current working directory [planned]
 - umask [planned]
-- signal dispositions [planned]
-- parent death signal [planned]
+- signal disposition [planned]
+- process group [planned]
 
 `ir` runs the processes in concurrent subprocesses, collects detailed results,
 and returns them in a JSON document.  Results include,
