@@ -3,8 +3,9 @@ A program for running other programs
 
 # Description
 
-`ir` takes a JSON specification of processes to run, and runs them.  The JSON
-specification gives detailed control over all aspects of the process:
+`ir` takes a [JSON specification](docs/spec.md) of processes to run, and runs
+them.  The JSON specification gives detailed control over all aspects of the
+process:
 
 - the executable to run
 - the command line
