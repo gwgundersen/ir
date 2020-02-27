@@ -4,6 +4,7 @@
   - [ ] tests
   - [ ] tests with children that have subprocs
 - [ ] clean up oflags
+- [ ] accept a map for fds, if you don't care about order
 - [ ] cwd
 - [ ] cwd before interpreting spec?
 - [ ] umask
