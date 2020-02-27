@@ -1,4 +1,5 @@
 - [ ] multiple procs in a single file, run in parallel (identified how?)
+  - [x] basic
   - [ ] SIGCHLD dance
   - [ ] tests
   - [ ] tests with children that have subprocs
