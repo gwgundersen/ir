@@ -1,5 +1,21 @@
 This page explains the syntax for a _spec_, which describes in detail how to run
-processes.
+processes.  The `procs` key is a list of specifications of processes to run.
+
+```js
+{
+  "procs": [
+    {...},
+    {...}
+  ]
+}
+```
+
+If there is only one proc, the enclosing array may be omitted.
+
+
+# Procs
+
+Each process to run is given by an object.
 
 ```js
 {
@@ -9,6 +25,7 @@ processes.
 }
 ```
 
+
 ### Argv
 
 An array of strings givign the argument vector list.  (required)
@@ -17,6 +34,27 @@ The first element is used also used as the executable name.
 
 
 ### Envs
+
+How to construct the process environment.  (optional)
+
+```js
+{
+  "inherit": ...,
+  "vars": {
+    "name": "value",
+    ...
+  }
+}
+```
+
+The `inherit` key may be:
+- `true`, to inherit all env vars from the parent process
+- `false`, to inherit no env vars from the parent process
+- an array of env var names to inherit
+
+The `vars` key is an object whose keys and values are used as environment
+variables.  Values must be strings.  These take precedence over inherited env
+vars of the same names.
 
 
 ### Fds
