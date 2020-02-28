@@ -222,6 +222,60 @@ pub fn select(
     }
 }
 
+// void handler(int sig, siginfo_t *info, void *ucontext)
+// FIXME: ucontext_t?
+type Sighandler = extern "system" fn(c_int, *const libc::siginfo_t, *const libc::c_void);
+
+pub enum Sigdisposition {
+    Default,
+    Ignore,
+    Handler(*const Sighandler),
+}
+
+pub struct Sigaction {
+    disposition: Sigdisposition,
+    mask: libc::sigset_t,
+    flags: c_int,
+}
+
+// FIXME: Make it an Option<Sigaction>
+pub fn sigaction(signum: c_int, sigaction: Sigaction) -> io::Result<Sigaction>
+{
+    unsafe {
+        let disposition: libc::sighandler_t = match sigaction.disposition {
+            Sigdisposition::Default => libc::SIG_DFL,
+            Sigdisposition::Ignore => libc::SIG_IGN,
+            Sigdisposition::Handler(h) => h as libc::sighandler_t,
+        };
+        let act = libc::sigaction {
+            sa_sigaction: disposition,
+            sa_mask: sigaction.mask,
+            sa_flags: sigaction.flags,
+        };
+        let mut old = libc::sigaction {
+            // These values will be overwritten, but no Default for this struct.
+            sa_sigaction: libc::SIG_DFL,
+            sa_mask: 0,
+            sa_flags: 0,
+        };
+        match {
+            libc::sigaction(signum, &act, &mut old)
+        } {
+            -1 => Err(io::Error::last_os_error()),
+            0 => Ok(Sigaction {
+                disposition: match old.sa_sigaction {
+                    libc::SIG_DFL => Sigdisposition::Default,
+                    libc::SIG_IGN => Sigdisposition::Ignore,
+                    h => Sigdisposition::Handler(h as *const Sighandler),
+                },
+                mask: old.sa_mask,
+                flags: old.sa_flags,
+            }),
+            ret => panic!("sigaction returned {}", ret),
+        }
+    }
+}
+
 /// Performs a (possibly) blocking wait if `block`; else returns immediately.
 /// Returns `Ok(None)` only if a nonblocking call doesn't find a process.
 pub fn wait4(pid: pid_t, block: bool) -> io::Result<Option<(pid_t, c_int, rusage)>> {
