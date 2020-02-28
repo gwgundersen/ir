@@ -231,6 +231,7 @@ pub enum Sigdisposition {
     Ignore,
     Handler(*const Sighandler),
 }
+// FIXME: from(), to() libc::sigaction_t?
 
 pub struct Sigaction {
     disposition: Sigdisposition,
@@ -238,41 +239,50 @@ pub struct Sigaction {
     flags: c_int,
 }
 
-// FIXME: Make it an Option<Sigaction>
-pub fn sigaction(signum: c_int, sigaction: Sigaction) -> io::Result<Sigaction>
+fn empty_sigaction() -> libc::sigaction
 {
-    unsafe {
-        let disposition: libc::sighandler_t = match sigaction.disposition {
-            Sigdisposition::Default => libc::SIG_DFL,
-            Sigdisposition::Ignore => libc::SIG_IGN,
-            Sigdisposition::Handler(h) => h as libc::sighandler_t,
-        };
-        let act = libc::sigaction {
-            sa_sigaction: disposition,
-            sa_mask: sigaction.mask,
-            sa_flags: sigaction.flags,
-        };
-        let mut old = libc::sigaction {
-            // These values will be overwritten, but no Default for this struct.
-            sa_sigaction: libc::SIG_DFL,
-            sa_mask: 0,
-            sa_flags: 0,
-        };
-        match {
-            libc::sigaction(signum, &act, &mut old)
-        } {
-            -1 => Err(io::Error::last_os_error()),
-            0 => Ok(Sigaction {
-                disposition: match old.sa_sigaction {
-                    libc::SIG_DFL => Sigdisposition::Default,
-                    libc::SIG_IGN => Sigdisposition::Ignore,
-                    h => Sigdisposition::Handler(h as *const Sighandler),
+    libc::sigaction {
+        sa_sigaction: libc::SIG_DFL,
+        sa_mask: 0,
+        sa_flags: 0,
+    }
+}
+
+/// Sets and/or retrieves the signal action of `signum`.
+///
+/// If sigaction is `Some`, sets the signal action and returns the previous.  If
+/// sigaction is `None`, retrieves the signal action without changing it.
+pub fn sigaction(signum: c_int, sigaction: Option<Sigaction>) -> io::Result<Sigaction>
+{
+    let act: libc::sigaction;
+    let act_ptr = match sigaction {
+        Some(sa) => {
+            act = libc::sigaction {
+                sa_sigaction: match sa.disposition {
+                    Sigdisposition::Default => libc::SIG_DFL,
+                    Sigdisposition::Ignore => libc::SIG_IGN,
+                    Sigdisposition::Handler(h) => h as libc::sighandler_t,
                 },
-                mask: old.sa_mask,
-                flags: old.sa_flags,
-            }),
-            ret => panic!("sigaction returned {}", ret),
-        }
+                sa_mask: sa.mask,
+                sa_flags: sa.flags,
+            };
+            &act
+        },
+        None => std::ptr::null(),
+    };
+    let mut old = empty_sigaction();
+    match unsafe { libc::sigaction(signum, act_ptr, &mut old) } {
+        -1 => Err(io::Error::last_os_error()),
+        0 => Ok(Sigaction {
+            disposition: match old.sa_sigaction {
+                libc::SIG_DFL => Sigdisposition::Default,
+                libc::SIG_IGN => Sigdisposition::Ignore,
+                h => Sigdisposition::Handler(h as *const Sighandler),
+            },
+            mask: old.sa_mask,
+            flags: old.sa_flags,
+        }),
+        ret => panic!("sigaction returned {}", ret),
     }
 }
 
