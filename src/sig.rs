@@ -6,18 +6,20 @@ use std::io;
 
 // void handler(int sig, siginfo_t *info, void *ucontext)
 // FIXME: ucontext_t?
-type Sighandler = extern "system" fn(libc::c_int, *const libc::siginfo_t, *const libc::c_void);
+// FIXME: Handler type has to be predicated on flags & SA_SIGINFO.
+// type Sighandler = extern "system" fn(libc::c_int, *const libc::siginfo_t, *const libc::c_void);
+type Sighandler = extern "system" fn(libc::c_int) -> ();
 
 pub enum Sigdisposition {
     Default,
     Ignore,
-    Handler(*const Sighandler),
+    Handler(Sighandler),
 }
 
 pub struct Sigaction {
-    disposition: Sigdisposition,
-    mask: libc::sigset_t,
-    flags: libc::c_int,
+    pub disposition: Sigdisposition,
+    pub mask: libc::sigset_t,
+    pub flags: libc::c_int,
 }
 
 impl std::convert::Into<libc::sigaction> for Sigaction {
@@ -40,7 +42,9 @@ impl std::convert::From<libc::sigaction> for Sigaction {
             disposition: match sa.sa_sigaction {
                 libc::SIG_DFL => Sigdisposition::Default,
                 libc::SIG_IGN => Sigdisposition::Ignore,
-                h => Sigdisposition::Handler(h as *const Sighandler),
+                h => Sigdisposition::Handler(unsafe {
+                    std::mem::transmute::<libc::sighandler_t, Sighandler>(h)
+                }),
             },
             mask: sa.sa_mask,
             flags: sa.sa_flags,

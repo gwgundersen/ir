@@ -10,6 +10,7 @@ use ir::fd::parse_fd;
 use ir::fdio;
 use ir::res;
 use ir::sel;
+use ir::sig;
 use ir::spec;
 use ir::sys;
 use libc::pid_t;
@@ -22,6 +23,10 @@ struct Proc {
     pub env: environ::Env,
     pub fds: Vec<Box<dyn Fd>>,
     pub pid: pid_t,
+}
+
+extern "system" fn sigchld(signum: libc::c_int) {
+    eprintln!("sigchld handler: {}", signum);
 }
 
 fn main() {
@@ -51,6 +56,16 @@ fn main() {
     // Read errors from the error pipe.
     selecter.insert_reader(
         err_read_fd, sel::Reader::Errors { errs: Vec::new() });
+
+    // Set up SIGCHLD handler.
+    sig::sigaction(libc::SIGCHLD, Some(sig::Sigaction {
+        disposition: sig::Sigdisposition::Handler(sigchld),
+        mask: 0,
+        flags: libc::SA_NOCLDSTOP,
+    })).unwrap_or_else(|err| {
+        eprintln!("sigaction failed: {}", err);
+        std::process::exit(exitcode::OSERR);
+    });
 
     let mut procs = BTreeMap::<pid_t, Proc>::new();
     for (order, spec) in input.procs.iter().enumerate() {
