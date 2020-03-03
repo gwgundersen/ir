@@ -4,9 +4,9 @@ use std::io;
 
 //------------------------------------------------------------------------------
 
-// void handler(int sig, siginfo_t *info, void *ucontext)
 // FIXME: ucontext_t?
 // FIXME: Handler type has to be predicated on flags & SA_SIGINFO.
+// void handler(int sig, siginfo_t *info, void *ucontext)
 // type Sighandler = extern "system" fn(libc::c_int, *const libc::siginfo_t, *const libc::c_void);
 type Sighandler = extern "system" fn(libc::c_int) -> ();
 
