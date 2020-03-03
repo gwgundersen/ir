@@ -81,6 +81,7 @@ impl Selecter {
         }
         let mut write_set = FdSet::new();
         let mut error_set = FdSet::new();
+        // FIXME: Pass through EINTR.
         select(&mut read_set, &mut write_set, &mut error_set, timeout)?;
 
         for (fd, reader) in self.readers.iter_mut() {
