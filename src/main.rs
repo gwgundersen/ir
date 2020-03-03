@@ -25,10 +25,6 @@ struct Proc {
     pub pid: pid_t,
 }
 
-extern "system" fn sigchld(signum: libc::c_int) {
-    eprintln!("sigchld handler: {}", signum);
-}
-
 fn main() {
     let json_path = match std::env::args().skip(1).next() {
         Some(p) => p,
@@ -56,16 +52,6 @@ fn main() {
     // Read errors from the error pipe.
     selecter.insert_reader(
         err_read_fd, sel::Reader::Errors { errs: Vec::new() });
-
-    // Set up SIGCHLD handler.
-    sig::sigaction(libc::SIGCHLD, Some(sig::Sigaction {
-        disposition: sig::Sigdisposition::Handler(sigchld),
-        mask: 0,
-        flags: libc::SA_NOCLDSTOP,
-    })).unwrap_or_else(|err| {
-        eprintln!("sigaction failed: {}", err);
-        std::process::exit(exitcode::OSERR);
-    });
 
     let mut procs = BTreeMap::<pid_t, Proc>::new();
     for (order, spec) in input.procs.iter().enumerate() {
@@ -136,6 +122,23 @@ fn main() {
 
         procs.insert(child_pid, Proc {order, env, fds, pid: child_pid});
     }
+
+    static mut SIGCHLD_FLAG: bool = false;
+
+    extern "system" fn sigchld_handler(signum: libc::c_int) {
+        eprintln!("sigchld handler: {}", signum);
+        unsafe { SIGCHLD_FLAG = true; }
+    }
+
+    // Set up SIGCHLD handler.
+    sig::sigaction(libc::SIGCHLD, Some(sig::Sigaction {
+        disposition: sig::Sigdisposition::Handler(sigchld_handler),
+        mask: 0,
+        flags: libc::SA_NOCLDSTOP,
+    })).unwrap_or_else(|err| {
+        eprintln!("sigaction failed: {}", err);
+        std::process::exit(exitcode::OSERR);
+    });
 
     // Close the write end of the error pipe.
     sys::close(err_write_fd).unwrap();
