@@ -201,9 +201,7 @@ fn main() {
     proc_ress.resize_with(procs.len(), || { None });
 
     // FIXME: Clean up fds as they close, rather than all at once.
-    for (_pid_t, mut proc) in procs {
-        let (status, rusage) = proc.wait.unwrap();  // FIXME
-
+    for (_pid_t, proc) in &mut procs {
         for fd in &mut proc.fds {
             match (*fd).clean_up_in_parent(&mut selecter) {
                 Ok(Some(fd_result)) => {
@@ -217,7 +215,10 @@ fn main() {
                 },
             }
         }
+    }
 
+    for (_pid_t, proc) in procs {
+        let (status, rusage) = proc.wait.unwrap();  // FIXME
         let mut proc_res = res::ProcRes::new(proc.pid, status, rusage);
         proc_res.fds = proc.fd_res;
         proc_ress[proc.order] = Some(proc_res);
