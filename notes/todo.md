@@ -1,3 +1,18 @@
+The problem is that we cannot completely build a proc result until BOTH
+1. we have wait'ed the pid
+2. we are done processing all its fds
+
+So what does the main loop look like?
+- Blocking select.
+- Select ready?
+  - Process stuff.
+  - Retire closed fds.
+- SIGCHLD?
+  - wait4.
+  - Harvest completed pids.
+  - Push the Proc and ProcRes together into a vector.
+
+
 - [ ] multiple procs in a single file, run in parallel (identified how?)
   - [x] basic
   - [ ] SIGCHLD dance
