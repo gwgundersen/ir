@@ -208,12 +208,10 @@ fn main() {
         proc.wait = Some((status, rusage));
         num_running -= 1;
     }
-    // All procs should have been cleaned up by now.
-    debug_assert!(procs.values().all(|p| p.wait.is_some()), "not all procs waited");
 
     // Collect proc results.
     result.procs = procs.into_iter().map(|(_, proc)| {
-        let (status, rusage) = proc.wait.unwrap();  // FIXME
+        let (status, rusage) = proc.wait.unwrap();
         let mut proc_res = res::ProcRes::new(proc.pid, status, rusage);
         proc_res.fds = proc.fd_res;
         proc_res
