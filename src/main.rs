@@ -195,11 +195,6 @@ fn main() {
     // All procs should have been cleaned up by now.
     debug_assert!(procs.values().all(|p| p.wait.is_some()), "not all procs waited");
 
-    // Create an empty vector of proc results.  We'll fill in the results in the
-    // same order as the original procs.
-    let mut proc_ress = Vec::new();
-    proc_ress.resize_with(procs.len(), || { None });
-
     // FIXME: Clean up fds as they close, rather than all at once.
     for (_pid_t, proc) in &mut procs {
         for fd in &mut proc.fds {
@@ -217,15 +212,13 @@ fn main() {
         }
     }
 
-    for (_pid_t, proc) in procs {
+    // Collect proc results.
+    result.procs = procs.into_iter().map(|(_, proc)| {
         let (status, rusage) = proc.wait.unwrap();  // FIXME
         let mut proc_res = res::ProcRes::new(proc.pid, status, rusage);
         proc_res.fds = proc.fd_res;
-        proc_ress[proc.order] = Some(proc_res);
-    }
-
-    // Collect proc results in the correct order.
-    result.procs = proc_ress.into_iter().map(|r| { r.unwrap() }).collect();
+        proc_res
+    }).collect();
 
     // Transfer errors retrieved from the error pipe buffer into results.
     for err in match selecter.remove_reader(err_read_fd) {
