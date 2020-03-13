@@ -152,8 +152,8 @@ fn main() {
     // Close the write end of the error pipe.
     sys::close(err_write_fd).unwrap();
 
+    // FIXME: Clean up fds as they close, rather than all at once.
     // FIXME: Merge select loop and wait loop, by handling SIGCHLD.
-
     while selecter.any() {
         match selecter.select(None) {
             Ok(_) => {
@@ -167,6 +167,22 @@ fn main() {
             },
         };
     };
+
+    for (_pid_t, proc) in &mut procs {
+        for fd in &mut proc.fds {
+            match (*fd).clean_up_in_parent(&mut selecter) {
+                Ok(Some(fd_result)) => {
+                    proc.fd_res.insert(ir::fd::get_fd_name(fd.get_fd()), fd_result);
+                }
+                Ok(None) => {
+                },
+                Err(err) => {
+                    proc.fd_res.insert(ir::fd::get_fd_name(fd.get_fd()), res::FdRes::Error {});
+                    result.errors.push(format!("failed to clean up fd {}: {}", fd.get_fd(), err));
+                },
+            }
+        }
+    }
 
     let mut num_running = procs.len();
     while num_running > 0 {
@@ -194,23 +210,6 @@ fn main() {
     }
     // All procs should have been cleaned up by now.
     debug_assert!(procs.values().all(|p| p.wait.is_some()), "not all procs waited");
-
-    // FIXME: Clean up fds as they close, rather than all at once.
-    for (_pid_t, proc) in &mut procs {
-        for fd in &mut proc.fds {
-            match (*fd).clean_up_in_parent(&mut selecter) {
-                Ok(Some(fd_result)) => {
-                    proc.fd_res.insert(ir::fd::get_fd_name(fd.get_fd()), fd_result);
-                }
-                Ok(None) => {
-                },
-                Err(err) => {
-                    proc.fd_res.insert(ir::fd::get_fd_name(fd.get_fd()), res::FdRes::Error {});
-                    result.errors.push(format!("failed to clean up fd {}: {}", fd.get_fd(), err));
-                },
-            }
-        }
-    }
 
     // Collect proc results.
     result.procs = procs.into_iter().map(|(_, proc)| {
