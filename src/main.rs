@@ -17,12 +17,12 @@ use libc::pid_t;
 use std::collections::BTreeMap;
 
 // State related to a running proc.
-#[derive(Default)]
 struct Proc {
     pub order: usize,
     pub env: environ::Env,
     pub fds: Vec<Box<dyn Fd>>,
     pub pid: pid_t,
+    pub wait: Option<(libc::c_int, libc::rusage)>,
 }
 
 fn main() {
@@ -120,7 +120,9 @@ fn main() {
             });
         }
 
-        procs.insert(child_pid, Proc {order, env, fds, pid: child_pid});
+        procs.insert(
+            child_pid, 
+            Proc {order, env, fds, pid: child_pid, wait: None});
     }
 
     static mut SIGCHLD_FLAG: bool = false;
@@ -159,12 +161,8 @@ fn main() {
         };
     };
 
-    // Create an empty vector of proc results.  We'll fill in the results in the
-    // same order as the original procs.
-    let mut proc_ress = Vec::new();
-    proc_ress.resize_with(procs.len(), || { None });
-
-    while procs.len() > 0 {
+    let mut num_running = procs.len();
+    while num_running > 0 {
         let (wait_pid, status, rusage) = match sys::wait4(-1, true) {
             Ok(Some(r)) => r,
             Ok(None) => panic!("wait4 empty result"),
@@ -172,7 +170,7 @@ fn main() {
             Err(err) => panic!("wait4 failed: {}", err),
         };
 
-        let mut proc = match procs.remove(&wait_pid) {
+        let proc = match procs.get_mut(&wait_pid) {
             Some(p) => p,
             None => {
                 // FIXME: Nothing wrong with this.
@@ -181,6 +179,20 @@ fn main() {
             }
         };
 
+        proc.wait = Some((status, rusage));
+        num_running -= 1;
+    }
+
+    debug_assert!(procs.values().all(|p| p.wait.is_some()));
+
+    // Create an empty vector of proc results.  We'll fill in the results in the
+    // same order as the original procs.
+    let mut proc_ress = Vec::new();
+    proc_ress.resize_with(procs.len(), || { None });
+
+    // FIXME: Clean up fds as they close, rather than all at once.
+    for (_pid_t, mut proc) in procs {
+        let (status, rusage) = proc.wait.unwrap();  // FIXME
         let mut proc_res = res::ProcRes::new(proc.pid, status, rusage);
 
         for fd in &mut proc.fds {
