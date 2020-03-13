@@ -18,7 +18,6 @@ use std::collections::BTreeMap;
 
 // State related to a running proc.
 struct Proc {
-    pub order: usize,
     pub env: environ::Env,
     pub fds: Vec<Box<dyn Fd>>,
     pub pid: pid_t,
@@ -55,7 +54,7 @@ fn main() {
         err_read_fd, sel::Reader::Errors { errs: Vec::new() });
 
     let mut procs = BTreeMap::<pid_t, Proc>::new();
-    for (order, spec) in input.procs.iter().enumerate() {
+    for spec in input.procs {
         let env = environ::build(std::env::vars(), &spec.env);
 
         // Build fd managers.
@@ -124,7 +123,7 @@ fn main() {
         procs.insert(
             child_pid, 
             Proc {
-                order, env, fds,
+                env, fds,
                 pid: child_pid,
                 wait: None,
                 fd_res: BTreeMap::new(),
