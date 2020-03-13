@@ -178,12 +178,12 @@ fn main() {
                 continue;
             }
         };
-
+        debug_assert!(proc.wait.is_none(), "proc already waited");
         proc.wait = Some((status, rusage));
         num_running -= 1;
     }
-
-    debug_assert!(procs.values().all(|p| p.wait.is_some()));
+    // All procs should have been cleaned up by now.
+    debug_assert!(procs.values().all(|p| p.wait.is_some()), "not all procs waited");
 
     // Create an empty vector of proc results.  We'll fill in the results in the
     // same order as the original procs.
