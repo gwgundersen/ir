@@ -173,7 +173,10 @@ fn main() {
         let (wait_pid, status, rusage) = match sys::wait4(-1, true) {
             Ok(Some(r)) => r,
             Ok(None) => panic!("wait4 empty result"),
-            // FIXME: Handle EINTR.
+            Err(ref err) if err.kind() == std::io::ErrorKind::Interrupted => {
+                // wait4 interrupted, possibly by SIGCHLD.  Keep going.
+                continue;
+            },
             Err(err) => panic!("wait4 failed: {}", err),
         };
 
