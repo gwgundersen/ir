@@ -23,6 +23,7 @@ struct Proc {
     pub fds: Vec<Box<dyn Fd>>,
     pub pid: pid_t,
     pub wait: Option<(libc::c_int, libc::rusage)>,
+    pub fd_res: BTreeMap<String, res::FdRes>,
 }
 
 fn main() {
@@ -122,7 +123,13 @@ fn main() {
 
         procs.insert(
             child_pid, 
-            Proc {order, env, fds, pid: child_pid, wait: None});
+            Proc {
+                order, env, fds,
+                pid: child_pid,
+                wait: None,
+                fd_res: BTreeMap::new(),
+            }
+        );
     }
 
     static mut SIGCHLD_FLAG: bool = false;
@@ -193,22 +200,23 @@ fn main() {
     // FIXME: Clean up fds as they close, rather than all at once.
     for (_pid_t, mut proc) in procs {
         let (status, rusage) = proc.wait.unwrap();  // FIXME
-        let mut proc_res = res::ProcRes::new(proc.pid, status, rusage);
 
         for fd in &mut proc.fds {
             match (*fd).clean_up_in_parent(&mut selecter) {
                 Ok(Some(fd_result)) => {
-                    proc_res.fds.insert(ir::fd::get_fd_name(fd.get_fd()), fd_result);
+                    proc.fd_res.insert(ir::fd::get_fd_name(fd.get_fd()), fd_result);
                 }
                 Ok(None) => {
                 },
                 Err(err) => {
-                    proc_res.fds.insert(ir::fd::get_fd_name(fd.get_fd()), res::FdRes::Error {});
+                    proc.fd_res.insert(ir::fd::get_fd_name(fd.get_fd()), res::FdRes::Error {});
                     result.errors.push(format!("failed to clean up fd {}: {}", fd.get_fd(), err));
                 },
             }
         }
 
+        let mut proc_res = res::ProcRes::new(proc.pid, status, rusage);
+        proc_res.fds = proc.fd_res;
         proc_ress[proc.order] = Some(proc_res);
     }
 
