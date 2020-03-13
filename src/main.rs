@@ -203,7 +203,7 @@ fn main() {
                 Ok(None) => {
                 },
                 Err(err) => {
-                    proc_res.fds.insert(ir::fd::get_fd_name(fd.get_fd()), res::FdRes::None {});
+                    proc_res.fds.insert(ir::fd::get_fd_name(fd.get_fd()), res::FdRes::Error {});
                     result.errors.push(format!("failed to clean up fd {}: {}", fd.get_fd(), err));
                 },
             }
