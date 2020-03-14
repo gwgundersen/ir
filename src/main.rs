@@ -5,16 +5,14 @@ extern crate exitcode;
 #[macro_use] extern crate maplit;
 
 use ir::environ;
-use ir::err::Error;
+use ir::err_pipe::new_err_pipe;
 use ir::fd::Fd;
 use ir::fd::parse_fd;
-use ir::fdio;
 use ir::res;
 use ir::sel;
 use ir::sig;
 use ir::spec;
 use ir::sys;
-use ir::sys::fd_t;
 use libc::pid_t;
 use std::collections::BTreeMap;
 
@@ -109,47 +107,6 @@ impl Procs {
 
 //------------------------------------------------------------------------------
 
-struct ErrPipeRead {
-    fd: fd_t,
-    errs: Vec<String>,
-}
-
-impl sel::Read for ErrPipeRead {
-    fn get_fd(&self) -> fd_t {
-        self.fd
-    }
-
-    fn read(&mut self) -> bool {
-        let err = match fdio::read_str(self.fd) {
-            Ok(str) => str,
-            Err(Error::Eof) => return true,
-            Err(err) => panic!("error: {}", err),
-        };
-        self.errs.push(err);
-        false
-    }
-}
-
-struct ErrPipeWrite {
-    fd: fd_t,
-}
-
-impl ErrPipeWrite {
-    pub fn send(&self, err: &str) {
-        fdio::write_str(self.fd, err).unwrap();
-    }
-}
-
-fn new_err_pipe() -> (ErrPipeRead, ErrPipeWrite) {
-    let (read_fd, write_fd) = sys::pipe().unwrap_or_else(|err| {
-        eprintln!("failed to create err pipe: {}", err);
-        std::process::exit(exitcode::OSERR);
-    });
-    let err_read = ErrPipeRead {fd: read_fd, errs: Vec::new()};
-    let err_write = ErrPipeWrite {fd: write_fd};
-    (err_read, err_write)
-}
-
 fn main() {
     let json_path = match std::env::args().skip(1).next() {
         Some(p) => p,
@@ -200,7 +157,7 @@ fn main() {
             // Child process.
 
             // Close the read end of the error pipe.
-            sys::close(err_read.fd).unwrap();
+            err_read.close().unwrap();
             let mut ok = true;
 
             for fd in proc_fds.iter_mut() {
@@ -256,7 +213,7 @@ fn main() {
     });
 
     // Close the write end of the error pipe.
-    sys::close(err_write.fd).unwrap();
+    err_write.close().unwrap();
 
     // Now we wait for the procs to run.
 
@@ -329,7 +286,7 @@ fn main() {
         }).collect();
 
     // Transfer errors retrieved from the error pipe buffer into results.
-    result.errors.append(&mut err_read.errs);
+    result.errors.append(&mut err_read.get_errors());
 
     res::print(&result);
     println!("");
