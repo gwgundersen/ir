@@ -27,6 +27,12 @@ struct Proc {
     pub fd_res: BTreeMap<String, res::FdRes>,
 }
 
+impl Proc {
+    pub fn new(env: environ::Env, fds: Vec<Box<dyn Fd>>, pid: pid_t) -> Self {
+        Self {env, fds, pid, wait: None, fd_res: BTreeMap::new()}
+    }
+}
+
 struct ErrPipeRead {
     fd: fd_t,
     errs: Vec<String>,
@@ -145,25 +151,22 @@ fn main() {
             std::process::exit(if ok { exitcode::OK } else { exitcode::OSERR });
         }
 
-        // Parent process.
+        else {
+            // Parent process.  Construct the record of this running proc.
+            procs.insert(child_pid, Proc::new(env, fds, child_pid));
+        }
+    }
 
-        for fd in &mut fds {
+    for proc in procs.values_mut() {
+        // Set up file descriptors.
+        for fd in &mut proc.fds {
+            let f = fd.get_fd();
             match (*fd).set_up_in_parent() {
-                Err(err) => result.errors.push(format!("failed to set up fd {}: {}", fd.get_fd(), err)),
+                Err(err) => result.errors.push(format!("failed to set up fd {}: {}", f, err)),
                 Ok(None) => (),
                 Ok(Some(read)) => select.insert_reader(read),
             };
         }
-
-        procs.insert(
-            child_pid, 
-            Proc {
-                env, fds,
-                pid: child_pid,
-                wait: None,
-                fd_res: BTreeMap::new(),
-            }
-        );
     }
 
     static mut SIGCHLD_FLAG: bool = false;
