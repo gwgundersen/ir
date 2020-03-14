@@ -179,26 +179,12 @@ fn main() {
     // Close the write end of the error pipe.
     sys::close(err_write.fd).unwrap();
 
-    // Finish setting up all file descriptors for all procs.
-    for proc_fds in &mut fds {
-        for fd in proc_fds {
-            let f = fd.get_fd();
-            match (*fd).set_up_in_parent() {
-                Err(err) => result.errors.push(format!("failed to set up fd {}: {}", f, err)),
-                Ok(None) => (),
-                Ok(Some(read)) => select.insert_reader(read),
-            };
-        }
-    }
-
     // Now we wait for the procs to run.
-
-    let mut num_running = procs.len();
 
     // Cleans up any waiting child procs.  If `block` is true, blocks until one
     // has terminated, then cleans up any that are waiting.  If `block` is
     // cleans up any that have already terminated and are waiting.
-    let mut wait = |block| {
+    fn wait(block: bool, procs: &mut BTreeMap<pid_t, Proc>) -> bool {
         loop {
             let (wait_pid, status, rusage) = match sys::wait4(-1, block) {
                 Ok(Some(r)) => r,
@@ -232,12 +218,26 @@ fn main() {
             };
             debug_assert!(proc.wait.is_none(), "proc already waited");
             proc.wait = Some((status, rusage));
-            return true
+            return true;
         }
-    };
+    }
 
-    while wait(false) {
+    let mut num_running = procs.len();
+    // Clean up procs that might have completed already.
+    while wait(false, &mut procs) {
         num_running -= 1;
+    }
+
+    // Finish setting up all file descriptors for all procs.
+    for proc_fds in &mut fds {
+        for fd in proc_fds {
+            let f = fd.get_fd();
+            match (*fd).set_up_in_parent() {
+                Err(err) => result.errors.push(format!("failed to set up fd {}: {}", f, err)),
+                Ok(None) => (),
+                Ok(Some(read)) => select.insert_reader(read),
+            };
+        }
     }
 
     // FIXME: Merge select loop and wait loop, by handling SIGCHLD.
@@ -254,7 +254,7 @@ fn main() {
             },
         };
         if unsafe { SIGCHLD_FLAG } {
-            while num_running > 0 && wait(false) {
+            while num_running > 0 && wait(false, &mut procs) {
                 num_running -= 1;
             }
         }
@@ -262,7 +262,7 @@ fn main() {
 
     std::mem::drop(select);
 
-    while num_running > 0 && wait(true) {
+    while num_running > 0 && wait(true, &mut procs) {
         num_running -= 1;
     }
 
