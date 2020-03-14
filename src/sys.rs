@@ -237,11 +237,11 @@ pub fn select(
     }
 }
 
-pub type TerminationInfo = (pid_t, c_int, rusage);
+pub type WaitInfo = (pid_t, c_int, rusage);
 
 /// Performs a (possibly) blocking wait if `block`; else returns immediately.
 /// Returns `Ok(None)` only if a nonblocking call doesn't find a process.
-pub fn wait4(pid: pid_t, block: bool) -> io::Result<Option<TerminationInfo>> {
+pub fn wait4(pid: pid_t, block: bool) -> io::Result<Option<WaitInfo>> {
     let mut status: c_int = 0;
     let mut usage = MaybeUninit::<rusage>::uninit();
     let options = if block { 0 } else { libc::WNOHANG };

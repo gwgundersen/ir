@@ -18,8 +18,10 @@ use ir::sys::fd_t;
 use libc::pid_t;
 use std::collections::BTreeMap;
 
+//------------------------------------------------------------------------------
+
 // FIXME: Elsewhere.
-fn wait(block: bool) -> Option<sys::TerminationInfo> {
+fn wait(block: bool) -> Option<sys::WaitInfo> {
     loop {
         match sys::wait4(-1, block) {
             Ok(Some(ti)) =>
@@ -46,18 +48,64 @@ fn wait(block: bool) -> Option<sys::TerminationInfo> {
     }
 }
 
-// State related to a running proc.
+//------------------------------------------------------------------------------
+
+/// A proc we're running, or that has terminated.
 struct Proc {
-    pub env: environ::Env,
     pub pid: pid_t,
-    pub wait: Option<(libc::c_int, libc::rusage)>,
+
+    /// None while the proc is running; the result of wait4() once the proc has
+    /// terminated and been cleaned up.
+    pub wait_info: Option<sys::WaitInfo>,
 }
 
-impl Proc {
-    pub fn new(env: environ::Env, pid: pid_t) -> Self {
-        Self {env, pid, wait: None}
-    }
+struct Procs {
+    procs: Vec<Proc>,
+    num_running: usize,
 }
+
+impl Procs {
+    pub fn new() -> Self {
+        Self { procs: Vec::new(), num_running: 0 }
+    }
+
+    pub fn push(&mut self, pid: pid_t) {
+        self.procs.push(Proc { pid, wait_info: None });
+        self.num_running += 1;
+    }
+
+    /// Waits for procs to finish.  Waits all completed `procs` and stores their
+    /// termination info.  If `block` is true and no procs are read to wait,
+    /// blocks until one is.
+    fn wait(&mut self, block: bool) {
+        while self.num_running > 0 {
+            if let Some(wait_info) = wait(block) {
+                let pid = wait_info.0;
+                let mut pid_found = false;
+                for proc in &mut self.procs {
+                    if proc.pid == pid {
+                        assert!(proc.wait_info.replace(wait_info).is_none());
+                        self.num_running -= 1;
+                        pid_found = true;
+                        break
+                    }
+                }
+                assert!(pid_found, "wait returned unexpected pid: {}", pid);
+            }
+            else {
+                assert!(! block, "blocking wait returned no pid");
+                break
+            }
+        }
+    }
+
+    pub fn wait_any(&mut self) { self.wait(false); }
+    pub fn wait_all(&mut self) { self.wait(true); }
+
+    pub fn into_iter(self) -> std::vec::IntoIter<Proc> { self.procs.into_iter() }
+}
+
+//------------------------------------------------------------------------------
 
 struct ErrPipeRead {
     fd: fd_t,
@@ -137,7 +185,7 @@ fn main() {
         }).collect::<Vec<_>>()
     }).collect::<Vec<_>>();
 
-    let mut procs = BTreeMap::<pid_t, Proc>::new();
+    let mut procs = Procs::new();
     for (spec, proc_fds) in input.procs.into_iter().zip(fds.iter_mut()) {
         let env = environ::build(std::env::vars(), &spec.env);
 
@@ -181,7 +229,7 @@ fn main() {
 
         else {
             // Parent process.  Construct the record of this running proc.
-            procs.insert(child_pid, Proc::new(env, child_pid));
+            procs.push(child_pid);
         }
     }
 
@@ -198,7 +246,7 @@ fn main() {
     // Set up SIGCHLD handler.
     sig::sigaction(libc::SIGCHLD, Some(sig::Sigaction {
         disposition: sig::Sigdisposition::Handler(sigchld_handler),
-        mask: 0,
+        mask: sig::empty_sigset(),
         flags: libc::SA_NOCLDSTOP,
     })).unwrap_or_else(|err| {
         eprintln!("sigaction failed: {}", err);
@@ -210,34 +258,8 @@ fn main() {
 
     // Now we wait for the procs to run.
 
-    // FIXME: Combine num_running and proc.wait into a data structure and clean
-    // up all this crap.
-
-    // Cleans up any waiting child procs.  If `block` is true, blocks until one
-    // has terminated, then cleans up any that are waiting.  If `block` is
-    // cleans up any that have already terminated and are waiting.
-    fn clean_up(block: bool, procs: &mut BTreeMap<pid_t, Proc>) -> bool {
-        match wait(block) {
-            Some((wait_pid, status, rusage)) => {
-                let proc = match procs.get_mut(&wait_pid) {
-                    Some(p) => p,
-                    None => {
-                        panic!("wait4 returned unexpected pid: {}", wait_pid);
-                    }
-                };
-                debug_assert!(proc.wait.is_none(), "proc already waited");
-                proc.wait = Some((status, rusage));
-                true
-            },
-            None => false,
-        }
-    }
-
-    let mut num_running = procs.len();
     // Clean up procs that might have completed already.
-    while clean_up(false, &mut procs) {
-        num_running -= 1;
-    }
+    procs.wait_any();
 
     // Finish setting up all file descriptors for all procs.
     for proc_fds in &mut fds {
@@ -265,17 +287,13 @@ fn main() {
             },
         };
         if unsafe { SIGCHLD_FLAG } {
-            while num_running > 0 && clean_up(false, &mut procs) {
-                num_running -= 1;
-            }
+            procs.wait_any();
         }
     };
-
     std::mem::drop(select);
 
-    while num_running > 0 && clean_up(true, &mut procs) {
-        num_running -= 1;
-    }
+    // Wait for all remaining procs to terminate.
+    procs.wait_all();
 
     // Collect fd results for each proc.
     
@@ -300,10 +318,9 @@ fn main() {
 
     // Collect proc results.
     result.procs = procs.into_iter()
-        .map(|(_, proc)| proc)
         .zip(fds.into_iter())
         .map(|(proc, fds)| {
-            let (status, rusage) = proc.wait.unwrap();
+            let (_, status, rusage) = proc.wait_info.unwrap();
             let mut proc_res = res::ProcRes::new(proc.pid, status, rusage);
             proc_res.fds = get_fd_res(fds);
             proc_res
