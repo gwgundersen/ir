@@ -59,10 +59,11 @@ where T: IntoIterator<Item = String>
 
 //------------------------------------------------------------------------------
 
+// FIXME: Boy does this need some docs.
 pub struct FdSet(libc::fd_set, fd_t);
 
 impl FdSet {
-    pub fn new() -> FdSet {
+    pub fn new() -> Self {
         let mut set = MaybeUninit::uninit();
         FdSet(unsafe {
             libc::FD_ZERO(set.as_mut_ptr());
@@ -70,11 +71,25 @@ impl FdSet {
         }, -1)
     }
 
+    pub fn from_fds<I: Iterator<Item = fd_t>>(fds: I) -> Self {
+        let mut set = Self::new();
+        for fd in fds {
+            set.set(fd);
+        }
+        set
+    }
+
     pub fn set(&mut self, fd: fd_t) {
         unsafe {
             libc::FD_SET(fd, &mut self.0);
         };
         self.1 = std::cmp::max(self.1, fd);
+    }
+
+    pub fn clear(&mut self, fd: fd_t) {
+        unsafe {
+            libc::FD_CLR(fd, &mut self.0);
+        };
     }
 
     pub fn is_set(&mut self, fd: fd_t) -> bool {
