@@ -74,9 +74,6 @@ impl Procs {
         self.num_running += 1;
     }
 
-    /// Waits for procs to finish.  Waits all completed `procs` and stores their
-    /// termination info.  If `block` is true and no procs are read to wait,
-    /// blocks until one is.
     fn wait(&mut self, block: bool) {
         while self.num_running > 0 {
             if let Some(wait_info) = wait(block) {
@@ -99,7 +96,12 @@ impl Procs {
         }
     }
 
+    /// Waits any procs that terminated and are zombies, and stores their wait
+    /// info.
     pub fn wait_any(&mut self) { self.wait(false); }
+
+    /// Blocks and waits for all remaining procs to terminate, and stores their
+    /// wait info.
     pub fn wait_all(&mut self) { self.wait(true); }
 
     pub fn into_iter(self) -> std::vec::IntoIter<Proc> { self.procs.into_iter() }
