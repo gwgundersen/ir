@@ -32,6 +32,8 @@ impl std::convert::Into<libc::sigaction> for Sigaction {
             },
             sa_mask: self.mask,
             sa_flags: self.flags,
+#[cfg(target_os = "linux")]
+            sa_restorer: None,
         }
     }
 }
@@ -52,12 +54,18 @@ impl std::convert::From<libc::sigaction> for Sigaction {
     }
 }
 
+pub fn empty_sigset() -> libc::sigset_t
+{
+    unsafe { std::mem::zeroed() }
+}
+
 fn empty_sigaction() -> libc::sigaction
 {
     libc::sigaction {
         sa_sigaction: libc::SIG_DFL,
-        sa_mask: 0,
+        sa_mask: empty_sigset(),
         sa_flags: 0,
+        sa_restorer: None,
     }
 }
 
