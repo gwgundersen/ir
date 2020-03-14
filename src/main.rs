@@ -211,9 +211,7 @@ fn main() {
             let proc = match procs.get_mut(&wait_pid) {
                 Some(p) => p,
                 None => {
-                    // FIXME: Nothing wrong with this.
-                    eprintln!("wait4 returned unexpected pid: {}", wait_pid);
-                    continue;
+                    panic!("wait4 returned unexpected pid: {}", wait_pid);
                 }
             };
             debug_assert!(proc.wait.is_none(), "proc already waited");
