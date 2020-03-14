@@ -21,15 +21,13 @@ use std::collections::BTreeMap;
 // State related to a running proc.
 struct Proc {
     pub env: environ::Env,
-    pub fds: Vec<Box<dyn Fd>>,
     pub pid: pid_t,
     pub wait: Option<(libc::c_int, libc::rusage)>,
-    pub fd_res: BTreeMap<String, res::FdRes>,
 }
 
 impl Proc {
-    pub fn new(env: environ::Env, fds: Vec<Box<dyn Fd>>, pid: pid_t) -> Self {
-        Self {env, fds, pid, wait: None, fd_res: BTreeMap::new()}
+    pub fn new(env: environ::Env, pid: pid_t) -> Self {
+        Self {env, pid, wait: None}
     }
 }
 
@@ -97,12 +95,9 @@ fn main() {
     // Read errors from the error pipe.
     select.insert_reader(&mut err_read);
 
-    let mut procs = BTreeMap::<pid_t, Proc>::new();
-    for spec in input.procs {
-        let env = environ::build(std::env::vars(), &spec.env);
-
-        // Build fd managers.
-        let mut fds = spec.fds.iter().map(|(fd_str, fd_spec)| {
+    // Build the objects presenting each of the file descriptors in each proc.
+    let mut fds = input.procs.iter().map(|spec| {
+        spec.fds.iter().map(|(fd_str, fd_spec)| {
             // FIXME: Parse when deserializing, rather than here.
             let fd_num = parse_fd(fd_str).unwrap_or_else(|err| {
                 eprintln!("failed to parse fd {}: {}", fd_str, err);
@@ -111,7 +106,12 @@ fn main() {
 
             // FIXME: Errors.
             ir::fd::create_fd(fd_num, &fd_spec).unwrap()
-        }).collect::<Vec<_>>();
+        }).collect::<Vec<_>>()
+    }).collect::<Vec<_>>();
+
+    let mut procs = BTreeMap::<pid_t, Proc>::new();
+    for (spec, proc_fds) in input.procs.into_iter().zip(fds.iter_mut()) {
+        let env = environ::build(std::env::vars(), &spec.env);
 
         // Fork the child process.
         let child_pid = sys::fork().unwrap_or_else(|err| {
@@ -125,7 +125,7 @@ fn main() {
             sys::close(err_read.fd).unwrap();
             let mut ok = true;
 
-            for fd in &mut fds {
+            for fd in proc_fds.iter_mut() {
                 (*fd).set_up_in_child().unwrap_or_else(|err| {
                     err_write.send(&format!("failed to set up fd {}: {}", fd.get_fd(), err));
                     ok = false;
@@ -141,7 +141,7 @@ fn main() {
             err_write.send(&format!("exec: {}: {}", exe, err));
             ok = false;
 
-            for fd in &mut fds {
+            for fd in proc_fds {
                 (*fd).clean_up_in_child().unwrap_or_else(|err| {
                     err_write.send(&format!("failed to clean up fd {}: {}", fd.get_fd(), err));
                     ok = false;
@@ -153,19 +153,7 @@ fn main() {
 
         else {
             // Parent process.  Construct the record of this running proc.
-            procs.insert(child_pid, Proc::new(env, fds, child_pid));
-        }
-    }
-
-    for proc in procs.values_mut() {
-        // Set up file descriptors.
-        for fd in &mut proc.fds {
-            let f = fd.get_fd();
-            match (*fd).set_up_in_parent() {
-                Err(err) => result.errors.push(format!("failed to set up fd {}: {}", f, err)),
-                Ok(None) => (),
-                Ok(Some(read)) => select.insert_reader(read),
-            };
+            procs.insert(child_pid, Proc::new(env, child_pid));
         }
     }
 
@@ -173,6 +161,8 @@ fn main() {
 
     extern "system" fn sigchld_handler(signum: libc::c_int) {
         eprintln!("sigchld handler: {}", signum);
+        // Accessing a static global is in general not threadsafe, but this
+        // signal handler will only ever be called on the main thread.
         unsafe { SIGCHLD_FLAG = true; }
     }
 
@@ -189,7 +179,67 @@ fn main() {
     // Close the write end of the error pipe.
     sys::close(err_write.fd).unwrap();
 
-    // FIXME: Clean up fds as they close, rather than all at once.
+    // Finish setting up all file descriptors for all procs.
+    for proc_fds in &mut fds {
+        for fd in proc_fds {
+            let f = fd.get_fd();
+            match (*fd).set_up_in_parent() {
+                Err(err) => result.errors.push(format!("failed to set up fd {}: {}", f, err)),
+                Ok(None) => (),
+                Ok(Some(read)) => select.insert_reader(read),
+            };
+        }
+    }
+
+    // Now we wait for the procs to run.
+
+    let mut num_running = procs.len();
+
+    // Cleans up any waiting child procs.  If `block` is true, blocks until one
+    // has terminated, then cleans up any that are waiting.  If `block` is
+    // cleans up any that have already terminated and are waiting.
+    let mut wait = |block| {
+        loop {
+            let (wait_pid, status, rusage) = match sys::wait4(-1, block) {
+                Ok(Some(r)) => r,
+                Ok(None) =>
+                    if block {
+                        panic!("wait4 empty result");
+                    }
+                    else {
+                        return false;
+                    },
+                Err(ref err)if err.kind() == std::io::ErrorKind::Interrupted =>
+                    // wait4 interrupted, possibly by SIGCHLD.
+                    if block {
+                        // Keep going.
+                        continue;
+                    }
+                    else {
+                        // Return, as the caller might want to do something.
+                        return false;
+                    },
+                Err(err) => panic!("wait4 failed: {}", err),
+            };
+
+            let proc = match procs.get_mut(&wait_pid) {
+                Some(p) => p,
+                None => {
+                    // FIXME: Nothing wrong with this.
+                    eprintln!("wait4 returned unexpected pid: {}", wait_pid);
+                    continue;
+                }
+            };
+            debug_assert!(proc.wait.is_none(), "proc already waited");
+            proc.wait = Some((status, rusage));
+            return true
+        }
+    };
+
+    while wait(false) {
+        num_running -= 1;
+    }
+
     // FIXME: Merge select loop and wait loop, by handling SIGCHLD.
     while select.any() {
         match select.select(None) {
@@ -203,56 +253,50 @@ fn main() {
                 panic!("select failed: {}", err)
             },
         };
+        if unsafe { SIGCHLD_FLAG } {
+            while num_running > 0 && wait(false) {
+                num_running -= 1;
+            }
+        }
     };
 
-    for (_pid_t, proc) in &mut procs {
-        for fd in &mut proc.fds {
-            match (*fd).clean_up_in_parent() {
+    std::mem::drop(select);
+
+    while num_running > 0 && wait(true) {
+        num_running -= 1;
+    }
+
+    // Collect fd results for each proc.
+    
+    fn get_fd_res(fds: Vec<Box<dyn Fd>>) -> BTreeMap<String, res::FdRes> {
+        let mut fd_res = BTreeMap::<String, res::FdRes>::new();
+        for mut fd in fds {
+            match fd.clean_up_in_parent() {
                 Ok(Some(fd_result)) => {
-                    proc.fd_res.insert(ir::fd::get_fd_name(fd.get_fd()), fd_result);
+                    fd_res.insert(ir::fd::get_fd_name(fd.get_fd()), fd_result);
                 }
                 Ok(None) => {
                 },
                 Err(err) => {
-                    proc.fd_res.insert(ir::fd::get_fd_name(fd.get_fd()), res::FdRes::Error {});
-                    result.errors.push(format!("failed to clean up fd {}: {}", fd.get_fd(), err));
+                    fd_res.insert(ir::fd::get_fd_name(fd.get_fd()), res::FdRes::Error {});
+                    // FIXME: Restore this.
+                    // result.errors.push(format!("failed to clean up fd {}: {}", fd.get_fd(), err));
                 },
-            }
+            };
         }
-    }
-
-    let mut num_running = procs.len();
-    while num_running > 0 {
-        let (wait_pid, status, rusage) = match sys::wait4(-1, true) {
-            Ok(Some(r)) => r,
-            Ok(None) => panic!("wait4 empty result"),
-            Err(ref err) if err.kind() == std::io::ErrorKind::Interrupted => {
-                // wait4 interrupted, possibly by SIGCHLD.  Keep going.
-                continue;
-            },
-            Err(err) => panic!("wait4 failed: {}", err),
-        };
-
-        let proc = match procs.get_mut(&wait_pid) {
-            Some(p) => p,
-            None => {
-                // FIXME: Nothing wrong with this.
-                eprintln!("wait4 returned unexpected pid: {}", wait_pid);
-                continue;
-            }
-        };
-        debug_assert!(proc.wait.is_none(), "proc already waited");
-        proc.wait = Some((status, rusage));
-        num_running -= 1;
-    }
+        fd_res
+    }        
 
     // Collect proc results.
-    result.procs = procs.into_iter().map(|(_, proc)| {
-        let (status, rusage) = proc.wait.unwrap();
-        let mut proc_res = res::ProcRes::new(proc.pid, status, rusage);
-        proc_res.fds = proc.fd_res;
-        proc_res
-    }).collect();
+    result.procs = procs.into_iter()
+        .map(|(_, proc)| proc)
+        .zip(fds.into_iter())
+        .map(|(proc, fds)| {
+            let (status, rusage) = proc.wait.unwrap();
+            let mut proc_res = res::ProcRes::new(proc.pid, status, rusage);
+            proc_res.fds = get_fd_res(fds);
+            proc_res
+        }).collect();
 
     // Transfer errors retrieved from the error pipe buffer into results.
     result.errors.append(&mut err_read.errs);
