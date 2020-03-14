@@ -18,6 +18,7 @@ use ir::sys::fd_t;
 use libc::pid_t;
 use std::collections::BTreeMap;
 
+// FIXME: Elsewhere.
 fn wait(block: bool) -> Option<sys::TerminationInfo> {
     loop {
         match sys::wait4(-1, block) {
