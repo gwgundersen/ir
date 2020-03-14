@@ -18,6 +18,33 @@ use ir::sys::fd_t;
 use libc::pid_t;
 use std::collections::BTreeMap;
 
+fn wait(block: bool) -> Option<sys::TerminationInfo> {
+    loop {
+        match sys::wait4(-1, block) {
+            Ok(Some(ti)) =>
+                return Some(ti),
+            Ok(None) =>
+                if block {
+                    panic!("wait4 empty result");
+                }
+                else {
+                    return None;
+                },
+            Err(ref err)if err.kind() == std::io::ErrorKind::Interrupted =>
+                // wait4 interrupted, possibly by SIGCHLD.
+                if block {
+                    // Keep going.
+                    continue;
+                }
+                else {
+                    // Return, as the caller might want to do something.
+                    return None;
+                },
+            Err(err) => panic!("wait4 failed: {}", err),
+        };
+    }
+}
+
 // State related to a running proc.
 struct Proc {
     pub env: environ::Env,
@@ -157,6 +184,7 @@ fn main() {
         }
     }
 
+    // FIXME: Abstract this away.
     static mut SIGCHLD_FLAG: bool = false;
 
     extern "system" fn sigchld_handler(signum: libc::c_int) {
@@ -181,48 +209,32 @@ fn main() {
 
     // Now we wait for the procs to run.
 
+    // FIXME: Combine num_running and proc.wait into a data structure and clean
+    // up all this crap.
+
     // Cleans up any waiting child procs.  If `block` is true, blocks until one
     // has terminated, then cleans up any that are waiting.  If `block` is
     // cleans up any that have already terminated and are waiting.
-    fn wait(block: bool, procs: &mut BTreeMap<pid_t, Proc>) -> bool {
-        loop {
-            let (wait_pid, status, rusage) = match sys::wait4(-1, block) {
-                Ok(Some(r)) => r,
-                Ok(None) =>
-                    if block {
-                        panic!("wait4 empty result");
+    fn clean_up(block: bool, procs: &mut BTreeMap<pid_t, Proc>) -> bool {
+        match wait(block) {
+            Some((wait_pid, status, rusage)) => {
+                let proc = match procs.get_mut(&wait_pid) {
+                    Some(p) => p,
+                    None => {
+                        panic!("wait4 returned unexpected pid: {}", wait_pid);
                     }
-                    else {
-                        return false;
-                    },
-                Err(ref err)if err.kind() == std::io::ErrorKind::Interrupted =>
-                    // wait4 interrupted, possibly by SIGCHLD.
-                    if block {
-                        // Keep going.
-                        continue;
-                    }
-                    else {
-                        // Return, as the caller might want to do something.
-                        return false;
-                    },
-                Err(err) => panic!("wait4 failed: {}", err),
-            };
-
-            let proc = match procs.get_mut(&wait_pid) {
-                Some(p) => p,
-                None => {
-                    panic!("wait4 returned unexpected pid: {}", wait_pid);
-                }
-            };
-            debug_assert!(proc.wait.is_none(), "proc already waited");
-            proc.wait = Some((status, rusage));
-            return true;
+                };
+                debug_assert!(proc.wait.is_none(), "proc already waited");
+                proc.wait = Some((status, rusage));
+                true
+            },
+            None => false,
         }
     }
 
     let mut num_running = procs.len();
     // Clean up procs that might have completed already.
-    while wait(false, &mut procs) {
+    while clean_up(false, &mut procs) {
         num_running -= 1;
     }
 
@@ -252,7 +264,7 @@ fn main() {
             },
         };
         if unsafe { SIGCHLD_FLAG } {
-            while num_running > 0 && wait(false, &mut procs) {
+            while num_running > 0 && clean_up(false, &mut procs) {
                 num_running -= 1;
             }
         }
@@ -260,7 +272,7 @@ fn main() {
 
     std::mem::drop(select);
 
-    while num_running > 0 && wait(true, &mut procs) {
+    while num_running > 0 && clean_up(true, &mut procs) {
         num_running -= 1;
     }
 
