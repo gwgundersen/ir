@@ -6,7 +6,6 @@ extern crate exitcode;
 
 use ir::environ;
 use ir::err_pipe::new_err_pipe;
-use ir::fd::Fd;
 use ir::fd::parse_fd;
 use ir::res;
 use ir::sel;
@@ -14,7 +13,6 @@ use ir::sig;
 use ir::spec;
 use ir::sys;
 use libc::pid_t;
-use std::collections::BTreeMap;
 
 //------------------------------------------------------------------------------
 
@@ -254,34 +252,33 @@ fn main() {
     // Wait for all remaining procs to terminate.
     procs.wait_all();
 
-    // Collect fd results for each proc.
-    
-    fn get_fd_res(fds: Vec<Box<dyn Fd>>) -> BTreeMap<String, res::FdRes> {
-        let mut fd_res = BTreeMap::<String, res::FdRes>::new();
-        for mut fd in fds {
-            match fd.clean_up_in_parent() {
-                Ok(Some(fd_result)) => {
-                    fd_res.insert(ir::fd::get_fd_name(fd.get_fd()), fd_result);
-                }
-                Ok(None) => {
-                },
-                Err(err) => {
-                    fd_res.insert(ir::fd::get_fd_name(fd.get_fd()), res::FdRes::Error {});
-                    // FIXME: Restore this.
-                    // result.errors.push(format!("failed to clean up fd {}: {}", fd.get_fd(), err));
-                },
-            };
-        }
-        fd_res
-    }        
-
     // Collect proc results.
     result.procs = procs.into_iter()
         .zip(fds.into_iter())
         .map(|(proc, fds)| {
             let (_, status, rusage) = proc.wait_info.unwrap();
+
+            // Build the proc res.
             let mut proc_res = res::ProcRes::new(proc.pid, status, rusage);
-            proc_res.fds = get_fd_res(fds);
+
+            // Build fd res's into it.
+            for mut fd in fds {
+                match fd.clean_up_in_parent() {
+                    Ok(Some(fd_result)) => {
+                        proc_res.fds.insert(
+                            ir::fd::get_fd_name(fd.get_fd()), fd_result);
+                    }
+                    Ok(None) => {
+                    },
+                    Err(err) => {
+                        proc_res.fds.insert(
+                            ir::fd::get_fd_name(fd.get_fd()), res::FdRes::Error {});
+                        result.errors.push(
+                            format!("failed to clean up fd {}: {}", fd.get_fd(), err));
+                    },
+                };
+            }
+
             proc_res
         }).collect();
 
