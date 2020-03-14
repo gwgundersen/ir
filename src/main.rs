@@ -5,6 +5,7 @@ extern crate exitcode;
 #[macro_use] extern crate maplit;
 
 use ir::environ;
+use ir::err::Error;
 use ir::fd::Fd;
 use ir::fd::parse_fd;
 use ir::fdio;
@@ -13,6 +14,7 @@ use ir::sel;
 use ir::sig;
 use ir::spec;
 use ir::sys;
+use ir::sys::fd_t;
 use libc::pid_t;
 use std::collections::BTreeMap;
 
@@ -25,12 +27,52 @@ struct Proc {
     pub fd_res: BTreeMap<String, res::FdRes>,
 }
 
+struct ErrPipeRead {
+    fd: fd_t,
+    errs: Vec<String>,
+}
+
+impl sel::Read for ErrPipeRead {
+    fn get_fd(&self) -> fd_t {
+        self.fd
+    }
+
+    fn read(&mut self) -> bool {
+        let err = match fdio::read_str(self.fd) {
+            Ok(str) => str,
+            Err(Error::Eof) => return true,
+            Err(err) => panic!("error: {}", err),
+        };
+        self.errs.push(err);
+        false
+    }
+}
+
+struct ErrPipeWrite {
+    fd: fd_t,
+}
+
+impl ErrPipeWrite {
+    pub fn send(&self, err: &str) {
+        fdio::write_str(self.fd, err).unwrap();
+    }
+}
+
+fn new_err_pipe() -> (ErrPipeRead, ErrPipeWrite) {
+    let (read_fd, write_fd) = sys::pipe().unwrap_or_else(|err| {
+        eprintln!("failed to create err pipe: {}", err);
+        std::process::exit(exitcode::OSERR);
+    });
+    let err_read = ErrPipeRead {fd: read_fd, errs: Vec::new()};
+    let err_write = ErrPipeWrite {fd: write_fd};
+    (err_read, err_write)
+}
+
 fn main() {
     let json_path = match std::env::args().skip(1).next() {
         Some(p) => p,
         None => panic!("no file given"),  // FIXME
     };
-
 
     let input = spec::load_file(&json_path).unwrap_or_else(|err| {
         eprintln!("failed to load {}: {}", json_path, err);
@@ -41,17 +83,13 @@ fn main() {
 
     let mut result = res::Res::new();
 
-    // Build pipe for passing errors from child to parent.
-    let (err_read_fd, err_write_fd) = sys::pipe().unwrap_or_else(|err| {
-        eprintln!("failed to create err pipe: {}", err);
-        std::process::exit(exitcode::OSERR);
-    });
-
     // Set up the selector, which will manage events while the child runs.
-    let mut selecter = sel::Selecter::new();
+    let mut select = sel::Select::new();
+
+    // Build pipe for passing errors from child to parent.
+    let (mut err_read, err_write) = new_err_pipe();
     // Read errors from the error pipe.
-    selecter.insert_reader(
-        err_read_fd, sel::Reader::Errors { errs: Vec::new() });
+    select.insert_reader(&mut err_read);
 
     let mut procs = BTreeMap::<pid_t, Proc>::new();
     for spec in input.procs {
@@ -77,18 +115,13 @@ fn main() {
         if child_pid == 0 {
             // Child process.
 
-            // Send errors in the child process to the parent via the pipe.
-            let error = |err: &str| {
-                fdio::write_str(err_write_fd, err).unwrap();
-            };
-
             // Close the read end of the error pipe.
-            sys::close(err_read_fd).unwrap();
+            sys::close(err_read.fd).unwrap();
             let mut ok = true;
 
             for fd in &mut fds {
                 (*fd).set_up_in_child().unwrap_or_else(|err| {
-                    error(&format!("failed to set up fd {}: {}", fd.get_fd(), err));
+                    err_write.send(&format!("failed to set up fd {}: {}", fd.get_fd(), err));
                     ok = false;
                 });
             }
@@ -99,12 +132,12 @@ fn main() {
             let exe = &spec.argv[0];
             let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();
             // If we got here, exec failed; send the error to the parent process.
-            error(&format!("exec: {}: {}", exe, err));
+            err_write.send(&format!("exec: {}: {}", exe, err));
             ok = false;
 
             for fd in &mut fds {
                 (*fd).clean_up_in_child().unwrap_or_else(|err| {
-                    error(&format!("failed to clean up fd {}: {}", fd.get_fd(), err));
+                    err_write.send(&format!("failed to clean up fd {}: {}", fd.get_fd(), err));
                     ok = false;
                 });
             }
@@ -115,9 +148,11 @@ fn main() {
         // Parent process.
 
         for fd in &mut fds {
-            (*fd).set_up_in_parent(&mut selecter).unwrap_or_else(|err| {
-                result.errors.push(format!("failed to set up fd {}: {}", fd.get_fd(), err));
-            });
+            match (*fd).set_up_in_parent() {
+                Err(err) => result.errors.push(format!("failed to set up fd {}: {}", fd.get_fd(), err)),
+                Ok(None) => (),
+                Ok(Some(read)) => select.insert_reader(read),
+            };
         }
 
         procs.insert(
@@ -149,12 +184,12 @@ fn main() {
     });
 
     // Close the write end of the error pipe.
-    sys::close(err_write_fd).unwrap();
+    sys::close(err_write.fd).unwrap();
 
     // FIXME: Clean up fds as they close, rather than all at once.
     // FIXME: Merge select loop and wait loop, by handling SIGCHLD.
-    while selecter.any() {
-        match selecter.select(None) {
+    while select.any() {
+        match select.select(None) {
             Ok(_) => {
                 // select did something.  Keep going.
             },
@@ -169,7 +204,7 @@ fn main() {
 
     for (_pid_t, proc) in &mut procs {
         for fd in &mut proc.fds {
-            match (*fd).clean_up_in_parent(&mut selecter) {
+            match (*fd).clean_up_in_parent() {
                 Ok(Some(fd_result)) => {
                     proc.fd_res.insert(ir::fd::get_fd_name(fd.get_fd()), fd_result);
                 }
@@ -217,12 +252,7 @@ fn main() {
     }).collect();
 
     // Transfer errors retrieved from the error pipe buffer into results.
-    for err in match selecter.remove_reader(err_read_fd) {
-        sel::Reader::Errors { errs } => errs,
-        _ => panic!("wrong sel for error pipe"),
-    } {
-        result.errors.push(err);
-    }
+    result.errors.append(&mut err_read.errs);
 
     res::print(&result);
     println!("");

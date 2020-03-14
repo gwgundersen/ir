@@ -1,6 +1,7 @@
-use crate::err::Result;
+use crate::err::{Error, Result};
+use crate::fdio;
 use crate::res::FdRes;
-use crate::sel::{Reader, Selecter};
+use crate::sel;
 use crate::spec;
 use crate::sys;
 use crate::sys::fd_t;
@@ -54,8 +55,8 @@ pub trait Fd {
     fn get_fd(&self) -> fd_t;
 
     /// Called after fork(), in parent process.
-    fn set_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<()> {
-        Ok(())
+    fn set_up_in_parent(&mut self) -> io::Result<Option<&mut dyn sel::Read>> {
+        Ok(None)
     }
 
     /// Called after fork(), in child process.
@@ -65,7 +66,7 @@ pub trait Fd {
 
     /// Called in parent process after wait().
     // FIXME: Return something that becomes JSON null in result.
-    fn clean_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<Option<FdRes>> {
+    fn clean_up_in_parent(&mut self) -> io::Result<Option<FdRes>> {
         Ok(None)
     }
 
@@ -139,7 +140,7 @@ impl Fd for File {
         Ok(())
     }
 
-    fn clean_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<Option<FdRes>> {
+    fn clean_up_in_parent(&mut self) -> io::Result<Option<FdRes>> {
         Ok(Some(FdRes::File { path: self.path.clone() }))
     }
 }
@@ -198,7 +199,7 @@ impl Fd for TempFileCapture {
         Ok(())
     }
 
-    fn clean_up_in_parent(&mut self, _: &mut Selecter) -> io::Result<Option<FdRes>> {
+    fn clean_up_in_parent(&mut self) -> io::Result<Option<FdRes>> {
         let mut file = unsafe {
             let file = std::fs::File::from_raw_fd(self.tmp_fd);
             self.tmp_fd = -1;
@@ -228,6 +229,9 @@ pub struct MemoryCapture {
 
     /// Format for output.
     format: spec::CaptureFormat,
+
+    /// Captured output.
+    buf: Vec<u8>,
 }
 
 impl MemoryCapture {
@@ -238,7 +242,23 @@ impl MemoryCapture {
             read_fd,
             write_fd,
             format,
+            buf: Vec::new(),
         })
+    }
+}
+
+impl sel::Read for MemoryCapture {
+    fn get_fd(&self) -> fd_t {
+        self.read_fd
+    }
+
+    fn read(&mut self) -> bool {
+        const SIZE: usize = 1024;
+        match fdio::read_into_vec(self.read_fd, &mut self.buf, SIZE) {
+            Ok(_) => false,
+            Err(Error::Eof) => true,
+            Err(err) => panic!("error: {}", err),
+        }
     }
 }
 
@@ -247,36 +267,23 @@ impl Fd for MemoryCapture {
         self.fd
     }
 
-    fn set_up_in_parent(&mut self, selecter: &mut Selecter) -> io::Result<()> {
-        // Close the write end of the pipe.  Only the child writes.
-        sys::close(self.write_fd)?;
-
-        // Set up to read from the pipe.
-        selecter.insert_reader(
-            self.read_fd, 
-            Reader::Capture { buf: Vec::new() },
-        );
-
-        Ok(())
-    }
-
     fn set_up_in_child(&mut self) -> io::Result<()> {
         sys::close(self.read_fd)?;
         sys::dup2(self.write_fd, self.fd)?;
         Ok(())
     }
 
+    fn set_up_in_parent(&mut self) -> io::Result<Option<&mut dyn sel::Read>> {
+        // Close the write end of the pipe.  Only the child writes.
+        sys::close(self.write_fd)?;
+        Ok(Some(self))
+    }
+
     /// Called in parent process after wait().
-    fn clean_up_in_parent(&mut self, selecter: &mut Selecter) -> io::Result<Option<FdRes>> {
-        // FIXME: We should consume readers instead of swapping out.
-        match selecter.remove_reader(self.read_fd) {
-            Reader::Capture { mut buf } => {
-                let mut buffer = Vec::new();
-                std::mem::swap(&mut buffer, &mut buf);
-                Ok(Some(FdRes::from_bytes(self.format, buffer)))
-            },
-            _ => panic!("wrong reader"),
-        }
+    fn clean_up_in_parent(&mut self) -> io::Result<Option<FdRes>> {
+        let mut buf = Vec::new();
+        std::mem::swap(&mut buf, &mut self.buf);
+        Ok(Some(FdRes::from_bytes(self.format, buf)))
     }
 }
 
