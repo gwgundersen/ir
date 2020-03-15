@@ -1,40 +1,67 @@
 extern crate libc;
 
+use libc::{c_int, sigset_t};
 use std::io;
 
 //------------------------------------------------------------------------------
 
+/// Signal handler callback fn.
 // FIXME: ucontext_t?
-// FIXME: Handler type has to be predicated on flags & SA_SIGINFO.
-// void handler(int sig, siginfo_t *info, void *ucontext)
-// type Sighandler = extern "system" fn(libc::c_int, *const libc::siginfo_t, *const libc::c_void);
-type Sighandler = extern "system" fn(libc::c_int) -> ();
+// FIXME: Handler type has to be predicated on flags & SA_SIGINFO.  With 
+//        SA_SIGINFO, the signature is,
+//            extern "system" fn(c_int, *const libc::siginfo_t, *const libc::c_void);
+type Sighandler = extern "system" fn(c_int) -> ();
 
-pub enum Sigdisposition {
-    Default,
-    Ignore,
-    Handler(Sighandler),
+pub fn empty_sigset() -> sigset_t
+{
+    unsafe { std::mem::zeroed() }
 }
 
-pub struct Sigaction {
-    pub disposition: Sigdisposition,
-    pub mask: libc::sigset_t,
-    pub flags: libc::c_int,
+#[cfg(not(target_os = "linux"))]
+fn make_sigaction(
+    sa_sigaction: libc::sighandler_t, sa_mask: sigset_t, 
+    sa_flags: c_int) -> libc::sigaction
+{
+    libc::sigaction {
+        sa_sigaction,
+        sa_mask,
+        sa_flags,
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn make_sigaction(
+    sa_sigaction: libc::sighandler_t, sa_mask: sigset_t, 
+    sa_flags: c_int) -> libc::sigaction
+{
+    libc::sigaction {
+        sa_sigaction,
+        sa_mask,
+        sa_flags,
+        None,  // sa_restorer is Linux only
+    }
+}
+
+fn empty_sigaction() -> libc::sigaction
+{
+    make_sigaction(
+        libc::SIG_DFL,
+        empty_sigset(),
+        0,
+    )
 }
 
 impl std::convert::Into<libc::sigaction> for Sigaction {
     fn into(self) -> libc::sigaction {
-        libc::sigaction {
-            sa_sigaction: match self.disposition {
+        make_sigaction(
+            match self.disposition {
                 Sigdisposition::Default => libc::SIG_DFL,
                 Sigdisposition::Ignore => libc::SIG_IGN,
                 Sigdisposition::Handler(h) => h as libc::sighandler_t,
             },
-            sa_mask: self.mask,
-            sa_flags: self.flags,
-#[cfg(target_os = "linux")]
-            sa_restorer: None,
-        }
+            self.mask,
+            self.flags,
+        )
     }
 }
 
@@ -54,26 +81,23 @@ impl std::convert::From<libc::sigaction> for Sigaction {
     }
 }
 
-pub fn empty_sigset() -> libc::sigset_t
-{
-    unsafe { std::mem::zeroed() }
+pub enum Sigdisposition {
+    Default,
+    Ignore,
+    Handler(Sighandler),
 }
 
-fn empty_sigaction() -> libc::sigaction
-{
-    libc::sigaction {
-        sa_sigaction: libc::SIG_DFL,
-        sa_mask: empty_sigset(),
-        sa_flags: 0,
-        sa_restorer: None,
-    }
+pub struct Sigaction {
+    pub disposition: Sigdisposition,
+    pub mask: sigset_t,
+    pub flags: c_int,
 }
 
 /// Sets and/or retrieves the signal action of `signum`.
 ///
 /// If sigaction is `Some`, sets the signal action and returns the previous.  If
 /// sigaction is `None`, retrieves the signal action without changing it.
-pub fn sigaction(signum: libc::c_int, sigaction: Option<Sigaction>) -> io::Result<Sigaction>
+pub fn sigaction(signum: c_int, sigaction: Option<Sigaction>) -> io::Result<Sigaction>
 {
     let act: libc::sigaction;
     let act_ptr = match sigaction {
@@ -105,11 +129,11 @@ static mut SIGNAL_FLAGS: [bool; NSIG] = [false; NSIG];
 /// Hacky unsafe boolean flag for a signal.  Installs a signal handler that sets
 /// the flag when the signal is received.
 impl SignalFlag {
-    pub fn new(signum: libc::c_int) -> Self {
+    pub fn new(signum: c_int) -> Self {
         assert!(signum > 0);
-        assert!(signum < NSIG as libc::c_int);
+        assert!(signum < NSIG as c_int);
         
-        extern "system" fn handler(signum: libc::c_int) {
+        extern "system" fn handler(signum: c_int) {
             eprintln!("signal handler: {}", signum);
             // Accessing a static global is in general not threadsafe, but this
             // signal handler will only ever be called on the main thread.
