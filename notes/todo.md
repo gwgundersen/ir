@@ -7,7 +7,9 @@
 - [ ] forward signals to subprocess
 - [ ] pdeath_sig
 - [ ] signal disposition
+- [ ] record start time, end time, elapsed time
 - [ ] serialize timeval as float sec instead of {tv_sec, tv_usec}
+- [ ] seriealize ru_maxrss in bytes
 - [ ] clean up oflags
 - [ ] accept a map for fds, if you don't care about order
 - [ ] exe
