@@ -38,7 +38,7 @@ fn make_sigaction(
         sa_sigaction,
         sa_mask,
         sa_flags,
-        None,  // sa_restorer is Linux only
+        sa_restorer: None,  // Linux only
     }
 }
 
