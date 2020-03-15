@@ -91,3 +91,52 @@ pub fn sigaction(signum: libc::c_int, sigaction: Option<Sigaction>) -> io::Resul
     }
 }
 
+//------------------------------------------------------------------------------
+
+// FIXME: NSIG is not reliably available in libc.  I hope this is enough.
+const NSIG: usize = 256;
+
+pub struct SignalFlag {
+    signum: usize,
+}
+
+static mut SIGNAL_FLAGS: [bool; NSIG] = [false; NSIG];
+
+/// Hacky unsafe boolean flag for a signal.  Installs a signal handler that sets
+/// the flag when the signal is received.
+impl SignalFlag {
+    pub fn new(signum: libc::c_int) -> Self {
+        assert!(signum > 0);
+        assert!(signum < NSIG as libc::c_int);
+        
+        extern "system" fn handler(signum: libc::c_int) {
+            eprintln!("signal handler: {}", signum);
+            // Accessing a static global is in general not threadsafe, but this
+            // signal handler will only ever be called on the main thread.
+            unsafe { SIGNAL_FLAGS[signum as usize] = true; }
+        }
+
+        // Set up the handler.
+        // FIXME: Check that we're not colliding with an existing handler.
+        sigaction(signum, Some(Sigaction {
+            disposition: Sigdisposition::Handler(handler),
+            mask: empty_sigset(),
+            flags: libc::SA_NOCLDSTOP,
+        })).unwrap_or_else(|err| {
+            eprintln!("sigaction failed: {}", err);
+            std::process::exit(exitcode::OSERR);
+        });
+
+        Self { signum: signum as usize }
+    }
+
+    /// Retrieves the flag value, and clears it.
+    pub fn get(&self) -> bool {
+        unsafe {
+            let val = SIGNAL_FLAGS[self.signum];
+            SIGNAL_FLAGS[self.signum] = false;
+            val
+        }
+    }
+}
+

@@ -184,30 +184,12 @@ fn main() {
         }
     }
 
-    // FIXME: Abstract this away.
-    static mut SIGCHLD_FLAG: bool = false;
-
-    extern "system" fn sigchld_handler(signum: libc::c_int) {
-        eprintln!("sigchld handler: {}", signum);
-        // Accessing a static global is in general not threadsafe, but this
-        // signal handler will only ever be called on the main thread.
-        unsafe { SIGCHLD_FLAG = true; }
-    }
-
-    // Set up SIGCHLD handler.
-    sig::sigaction(libc::SIGCHLD, Some(sig::Sigaction {
-        disposition: sig::Sigdisposition::Handler(sigchld_handler),
-        mask: sig::empty_sigset(),
-        flags: libc::SA_NOCLDSTOP,
-    })).unwrap_or_else(|err| {
-        eprintln!("sigaction failed: {}", err);
-        std::process::exit(exitcode::OSERR);
-    });
+    // Install a SIGCHLD signal handler that sets a flag.  This way we know when
+    // a proc has terminated.
+    let sigchld_flag = sig::SignalFlag::new(libc::SIGCHLD);
 
     // Close the write end of the error pipe.
     err_write.close().unwrap();
-
-    // Now we wait for the procs to run.
 
     // Clean up procs that might have completed already.
     procs.wait_any();
@@ -224,6 +206,7 @@ fn main() {
         }
     }
 
+    // Now we wait for the procs to run.
     // FIXME: Merge select loop and wait loop, by handling SIGCHLD.
     while select.any() {
         match select.select(None) {
@@ -237,7 +220,7 @@ fn main() {
                 panic!("select failed: {}", err)
             },
         };
-        if unsafe { SIGCHLD_FLAG } {
+        if sigchld_flag.get() {
             procs.wait_any();
         }
     };
