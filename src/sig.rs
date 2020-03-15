@@ -134,7 +134,6 @@ impl SignalFlag {
         assert!(signum < NSIG as c_int);
         
         extern "system" fn handler(signum: c_int) {
-            eprintln!("signal handler: {}", signum);
             // Accessing a static global is in general not threadsafe, but this
             // signal handler will only ever be called on the main thread.
             unsafe { SIGNAL_FLAGS[signum as usize] = true; }
