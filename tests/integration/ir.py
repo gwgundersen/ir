@@ -30,7 +30,7 @@ def run(specs):
             env={**os.environ, "RUST_BACKTRACE": "1"},
         )
     res = json.loads(res.stdout)
-    json.dump(res, sys.stderr, indent=2)
+    # json.dump(res, sys.stderr, indent=2)
 
     if len(res["errors"]) != 0:
         raise Errors(res["errors"])

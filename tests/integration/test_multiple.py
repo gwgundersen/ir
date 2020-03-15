@@ -40,8 +40,7 @@ def test_subprocs1():
     assert len(procs) == 8
     for proc in procs:
         assert proc["status"] == 0
-        text = proc["fds"]["stdout"]["text"]
-        lines = [ l.rstrip() for l in text.splitlines() ]
+        lines = proc["fds"]["stdout"]["text"].splitlines()
         forked = { int(l[8 :]) for l in lines if l.startswith("forked: ") }
         waited = { int(l[8 :]) for l in lines if l.startswith("waited: ") }
         assert forked == waited
@@ -56,7 +55,7 @@ def test_concurrent_print():
         {
             "argv": [
                 str(SCRIPTS_DIR / "general"),
-                "--print", "256x16385",
+                "--print", f"{1 << i}x{(1 << (22 - i)) + 1}",
             ],
             "fds": [
                 ["stdout", {"capture": {"mode": "memory"}}],
@@ -65,11 +64,10 @@ def test_concurrent_print():
         for i in range(8)
     )
 
-    for proc in procs:
-        text = proc["fds"]["stdout"]["text"]
-        lines = [ l.strip() for l in text.splitlines() ]
-        assert len(lines) == 256
-        expected = "x" * 16385
+    for i, proc in enumerate(procs):
+        lines = proc["fds"]["stdout"]["text"].splitlines()
+        assert len(lines) == 1 << i
+        expected = "x" * ((1 << (22 - i)) + 1)
         assert all( l == expected for l in lines )
 
 
