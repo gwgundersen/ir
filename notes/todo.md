@@ -7,6 +7,7 @@
 - [ ] forward signals to subprocess
 - [ ] pdeath_sig
 - [ ] signal disposition
+- [ ] serialize timeval as float sec instead of {tv_sec, tv_usec}
 - [ ] clean up oflags
 - [ ] accept a map for fds, if you don't care about order
 - [ ] exe
