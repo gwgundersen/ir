@@ -1,8 +1,3 @@
-- [ ] multiple procs in a single file, run in parallel (identified how?)
-  - [x] basic
-  - [x] SIGCHLD dance
-  - [ ] tests
-  - [ ] tests with children that have subprocs
 - [ ] handle signals and shut down cleanly
 - [ ] forward signals to subprocess
 - [ ] pdeath_sig
@@ -77,4 +72,5 @@
 - [x] integration test for UTF8 sanitization
 - [x] error reporting model, for parent process
 - [x] capture child proc setup errors and send back to parent
+- [x] multiple procs in a single file, run in parallel
 
