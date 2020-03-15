@@ -1,17 +1,18 @@
 - [ ] multiple procs in a single file, run in parallel (identified how?)
   - [x] basic
-  - [ ] SIGCHLD dance
+  - [x] SIGCHLD dance
   - [ ] tests
   - [ ] tests with children that have subprocs
+- [ ] handle signals and shut down cleanly
+- [ ] forward signals to subprocess
+- [ ] pdeath_sig
+- [ ] signal disposition
 - [ ] clean up oflags
 - [ ] accept a map for fds, if you don't care about order
 - [ ] exe
 - [ ] cwd
 - [ ] cwd before interpreting spec?
 - [ ] umask
-- [ ] handle signals and shut down cleanly
-- [ ] forward signals to subprocess
-- [ ] pdeath_sig
 - [ ] results to file, via --output option or similar
 - [ ] 'stdin', 'stdout', 'stderr' aliases to fds, consistently
 - spec validation
@@ -21,7 +22,6 @@
 - [ ] periodic update of results file while running
 - [ ] rusage for self vs children
 - [ ] input fd (stdin etc) from file
-- [ ] signal disposition
 - [ ] when running multiple procs, a way to connect their fds via pipes
 - [ ] transcript
 - [ ] transcript client lib (Python?)
