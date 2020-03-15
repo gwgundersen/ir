@@ -69,11 +69,6 @@ pub trait Fd {
     fn clean_up_in_parent(&mut self) -> io::Result<Option<FdRes>> {
         Ok(None)
     }
-
-    /// Called only if exec() fails.
-    fn clean_up_in_child(&mut self) -> io::Result<()> {
-        Ok(())
-    }
 }
 
 //------------------------------------------------------------------------------

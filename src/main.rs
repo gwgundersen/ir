@@ -137,8 +137,10 @@ fn main() {
                 std::process::exit(exitcode::OSERR);
             });
 
-            // FIXME: Errors.
-            ir::fd::create_fd(fd_num, &fd_spec).unwrap()
+            ir::fd::create_fd(fd_num, &fd_spec).unwrap_or_else(|err| {
+                eprintln!("failed to create fd {}: {}", fd_str, err);
+                std::process::exit(exitcode::OSERR);
+            })
         }).collect::<Vec<_>>()
     }).collect::<Vec<_>>();
 
@@ -156,10 +158,10 @@ fn main() {
 
             // Close the read end of the error pipe.
             err_read.close().unwrap();
-            let mut ok = true;
 
-            for fd in proc_fds.iter_mut() {
-                (*fd).set_up_in_child().unwrap_or_else(|err| {
+            let mut ok = true;
+            for fd in &mut *proc_fds {
+                fd.set_up_in_child().unwrap_or_else(|err| {
                     err_write.send(&format!("failed to set up fd {}: {}", fd.get_fd(), err));
                     ok = false;
                 });
@@ -170,18 +172,10 @@ fn main() {
 
             let exe = &spec.argv[0];
             let err = sys::execve(exe.clone(), spec.argv.clone(), env).unwrap_err();
+
             // If we got here, exec failed; send the error to the parent process.
             err_write.send(&format!("exec: {}: {}", exe, err));
-            ok = false;
-
-            for fd in proc_fds {
-                (*fd).clean_up_in_child().unwrap_or_else(|err| {
-                    err_write.send(&format!("failed to clean up fd {}: {}", fd.get_fd(), err));
-                    ok = false;
-                });
-            }
-
-            std::process::exit(if ok { exitcode::OK } else { exitcode::OSERR });
+            std::process::exit(exitcode::OSERR);
         }
 
         else {
