@@ -19,7 +19,8 @@ class Errors(Exception):
 
 
 
-def run(*specs):
+def run(specs):
+    specs = list(specs)
     with tempfile.NamedTemporaryFile(mode="w+") as tmp_file:
         json.dump({"procs": specs}, tmp_file)
         tmp_file.flush()
@@ -39,7 +40,7 @@ def run(*specs):
 
 def run1(spec):
     # Return results for the single process only.
-    proc, = run(spec)
+    proc, = run([spec])
     return proc
 
 
