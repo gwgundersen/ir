@@ -1,32 +1,18 @@
-The problem is that we cannot completely build a proc result until BOTH
-1. we have wait'ed the pid
-2. we are done processing all its fds
-
-So what does the main loop look like?
-- Blocking select.
-- Select ready?
-  - Process stuff.
-  - Retire closed fds.
-- SIGCHLD?
-  - wait4.
-  - Harvest completed pids.
-  - Push the Proc and ProcRes together into a vector.
-
-
 - [ ] multiple procs in a single file, run in parallel (identified how?)
   - [x] basic
-  - [ ] SIGCHLD dance
+  - [x] SIGCHLD dance
   - [ ] tests
   - [ ] tests with children that have subprocs
+- [ ] handle signals and shut down cleanly
+- [ ] forward signals to subprocess
+- [ ] pdeath_sig
+- [ ] signal disposition
 - [ ] clean up oflags
 - [ ] accept a map for fds, if you don't care about order
 - [ ] exe
 - [ ] cwd
 - [ ] cwd before interpreting spec?
 - [ ] umask
-- [ ] handle signals and shut down cleanly
-- [ ] forward signals to subprocess
-- [ ] pdeath_sig
 - [ ] results to file, via --output option or similar
 - [ ] 'stdin', 'stdout', 'stderr' aliases to fds, consistently
 - spec validation
@@ -36,7 +22,6 @@ So what does the main loop look like?
 - [ ] periodic update of results file while running
 - [ ] rusage for self vs children
 - [ ] input fd (stdin etc) from file
-- [ ] signal disposition
 - [ ] when running multiple procs, a way to connect their fds via pipes
 - [ ] transcript
 - [ ] transcript client lib (Python?)
