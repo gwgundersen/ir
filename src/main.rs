@@ -191,9 +191,6 @@ fn main() {
     // Close the write end of the error pipe.
     err_write.close().unwrap();
 
-    // Clean up procs that might have completed already.
-    procs.wait_any();
-
     // Finish setting up all file descriptors for all procs.
     for proc_fds in &mut fds {
         for fd in proc_fds {
@@ -206,8 +203,9 @@ fn main() {
         }
     }
 
+    // Clean up procs that might have completed already.
+    procs.wait_any();
     // Now we wait for the procs to run.
-    // FIXME: Merge select loop and wait loop, by handling SIGCHLD.
     while select.any() {
         match select.select(None) {
             Ok(_) => {
@@ -220,13 +218,14 @@ fn main() {
                 panic!("select failed: {}", err)
             },
         };
+        // If we received SIGCHLD, clean up any terminated procs.
         if sigchld_flag.get() {
             procs.wait_any();
         }
     };
     std::mem::drop(select);
 
-    // Wait for all remaining procs to terminate.
+    // Wait for all remaining procs to terminate and clean them up.
     procs.wait_all();
 
     // Collect proc results.
