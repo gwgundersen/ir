@@ -28,7 +28,7 @@ and returns them in a JSON document.  Results include,
 # Implementation
 
 `ir` is a project to help me learn Rust.  I deliberately avoid many dependency
-crates (other than the excellend Serde), to get experience with Rust systems
+crates (other than the excellent Serde), to get experience with Rust systems
 programming.
 
 Integration tests are written in Python and run under `pytest`, because this is
